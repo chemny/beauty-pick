@@ -1,0 +1,1 @@
+"""Local portrait assessment application."""

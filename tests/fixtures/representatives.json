@@ -1,0 +1,57 @@
+{
+  "reference_grid": "/Users/neo/Desktop/girls_8_best_grid.jpg",
+  "source_root": "/Users/neo/Desktop/选美/AI生成人像照片_8人物_17张",
+  "selection_basis": "用户确认拼图中的8张优化版；已逐张视觉核对原图。",
+  "adult_confirmed": true,
+  "adult_confirmation_basis": "用户明确回复：是，8张都是成年人物素材",
+  "samples": [
+    {
+      "id": "01",
+      "label": "01_卧室白色吊带",
+      "relative_path": "01_卧室白色吊带/indoor_portrait_scene_in_a_cozy_bedroom_living_spa.png",
+      "sha256": "c47fa80ea56f0b7e0dd8775de90548162ce1d839efe88661259f2429ec4b5ce9"
+    },
+    {
+      "id": "02",
+      "label": "02_白色蕾丝",
+      "relative_path": "02_白色蕾丝/cozy_portrait_by_the_feathered_lamp.png",
+      "sha256": "fdbca577b8a054670f7cbf8c53cca51a546227444caa60a7ad36052d3dac603c"
+    },
+    {
+      "id": "03",
+      "label": "03_黑色蕾丝",
+      "relative_path": "03_黑色蕾丝/cozy_bedroom_portrait_with_plush_toys.png",
+      "sha256": "241b6419a8c89db186a22fe4169686cd503c0e29562d180463b31e3f99cd9f71"
+    },
+    {
+      "id": "04",
+      "label": "04_别墅人物",
+      "relative_path": "04_别墅人物/elegant_living_room_selfie.png",
+      "sha256": "973650ad98dd05235fa2f811214024d53b17d6bba5de3662f0251ebb6f47a5dc"
+    },
+    {
+      "id": "05",
+      "label": "05_卧室白色上衣",
+      "relative_path": "05_卧室白色上衣/cozy_bedroom_streamer_portrait.png",
+      "sha256": "8ee62043e3fe5c7988385c29dce01ad84c08cedff52a363a29f0fe39cf22dce8"
+    },
+    {
+      "id": "06",
+      "label": "06_绿色针织裙",
+      "relative_path": "06_绿色针织裙/soft_green_bedroom_portrait.png",
+      "sha256": "a77e416d62965849950d0ecb7054f529883c6ab69677dd42c16a551078b2a54b"
+    },
+    {
+      "id": "07",
+      "label": "07_紫色礼服及同一人物",
+      "relative_path": "07_紫色礼服及同一人物/elegant_purple_dress_lobby_portrait.png",
+      "sha256": "19cbce4a2a183c03319c8a427a1cc1b47fcb0384a71538543cf7396e3c3949a5"
+    },
+    {
+      "id": "08",
+      "label": "08_白色系带裙",
+      "relative_path": "08_白色系带裙/elegant_lace_dress_portrait.png",
+      "sha256": "a8846085c43ac596baeff0bae8d301e0ee57e30d7fabb56195f80ac82ad24699"
+    }
+  ]
+}

@@ -1,0 +1,1255 @@
+{
+  "project": "颜选 · BeautyPick",
+  "project_root": "/Users/neo/inbox/beautypick",
+  "client_date": "2026-10-15",
+  "timezone": "America/Los_Angeles",
+  "captured_at_local": "2026-10-15T09:35:35.919903-07:00",
+  "skill": {
+    "name": "beauty-pick",
+    "source": "/Users/neo/.agents/skills/beauty-pick/SKILL.md",
+    "legacy_name": "portrait-evaluator",
+    "legacy_path_exists": false,
+    "antigravity_global_path": "/Users/neo/.gemini/config/skills/beauty-pick",
+    "global_link_exists": true,
+    "global_link_resolves_to": "/Users/neo/.agents/skills/beauty-pick"
+  },
+  "runtime": {
+    "provider": "codex_cli",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "medium",
+    "default_port": 8765,
+    "model_workers": 2,
+    "job_workers": 2,
+    "call_timeout_seconds": 180
+  },
+  "rules": {
+    "face": {
+      "rubric_version": "portrait-face-0.8",
+      "prompt_version": "portrait-face-bands-20261014-1",
+      "weights": {
+        "eyes": 20,
+        "nose_lips": 20,
+        "harmony": 25,
+        "face_shape": 25,
+        "skin": 10
+      }
+    },
+    "photography": {
+      "rubric_version": "portrait-experimental-0.1",
+      "prompt_version": "portrait-photo-tags-20261014-2",
+      "weights": {
+        "light": 25,
+        "clarity": 20,
+        "composition": 20,
+        "color": 20,
+        "background": 15
+      }
+    },
+    "body": {
+      "rubric_version": "body-appearance-3.0",
+      "prompt_version": "portrait-body-parts-20261014-5",
+      "weights": {
+        "chest": 25,
+        "waist": 20,
+        "hips": 15,
+        "legs": 15,
+        "proportion": 15,
+        "harmony": 10
+      }
+    }
+  },
+  "counts": {
+    "assets": 13,
+    "assessments": 91,
+    "model_calls": 119,
+    "projects": 1,
+    "candidate_groups": 8
+  },
+  "active_jobs": [],
+  "database_quick_check": {
+    "quick_check": "ok"
+  },
+  "verification": {
+    "pytest": "37 passed; 1 Starlette/httpx deprecation warning",
+    "frontend_build": "passed",
+    "frontend_lint": "passed",
+    "new_cloud_calls_for_handoff": 0,
+    "antigravity_installed_version": "2.23.1",
+    "antigravity_skill_discovery_tested": false,
+    "port_8765_listening_at_check": false
+  },
+  "source_sha256": {
+    "app/config.py": "bafabed473cfc37d40c7d53ee1cb58ee2f8a03f7283319feadc4308c12b66e4e",
+    "app/provider.py": "000963f1cb08f8405ad7d7ac5a015708593bcfec7dbf9e84cce682f492cee200",
+    "app/scoring.py": "7739e453ef933377c18439710b3867412d07afe8e8c521a49c3d3e3b6d11eda5",
+    "app/__init__.py": "872deeae7ff615afb099965068a2bec48ee3ae8078da1adce458c672b170d794",
+    "app/comparison.py": "b682dcb21a26a0601a92e3d62c2492d6f4192d60ea8aca4c18b62daf6fbc3429",
+    "app/cli.py": "5b581bb1134322c1e64fc3466ca5dd6b5ff8568f66186eaaa0b13e26c9df095a",
+    "app/pipeline.py": "0d0025393ea5eab119570c2298271e5c57dfe9179a10a8fe90c1c3f7ebdcc07a",
+    "app/storage.py": "b277063e376486bbe22e22f9a6cfb2d02cbe573920adaf02458455da508b5add",
+    "app/images.py": "96772da4337d5e582075234928d1c2efc68b5c2ec9ebad6071edc702e9e4ac40",
+    "app/provenance.py": "0a82911ef7ff9d361bd193a47c5a3a1d8098060b07f8dfa29b8243ba2f76c33f",
+    "app/main.py": "07298cc34cb6c2a26fdd4306c14420bf5b6d013815819f6915717c6e3925b30a",
+    "web/src/App.tsx": "8671fe91d8fb8dd349807c9d46b7697ae21cdcf184a61bd3c8f986abdbb9bead",
+    "web/src/main.tsx": "6e9e5807fcbd48b75a96db5cbef36c996262196be42e6d4760dc86babbe61ad2",
+    "web/src/Ranking.tsx": "848b92623f9c3ddccc81dfb46dad6395278019b4be10ab5fd00a44a69daf1206",
+    "web/src/Simple.css": "01731b9acff7a6c73981dc4d457ae2161ea9ae05bd125dd9adf78987466d32a4",
+    "start.sh": "394360890ff8d9d49ff296de956b20a8983be01e100a15162e164c4d7c100a23",
+    "/Users/neo/.agents/skills/beauty-pick/SKILL.md": "92b3d734e30995acb95d963c14c0b6f59d7c7fb99f667446f79594cd59bcc3b0"
+  },
+  "assets": [
+    {
+      "id": "c6253a37-d71d-4b2f-b37d-ebcdbe84b582",
+      "filename": "01_indoor_portrait_scene_in_a_cozy_bedroom_living_spa.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "ai",
+      "source_display": {
+        "label": "AI 图片",
+        "basis": "用户确认",
+        "platform": "ChatGPT",
+        "platform_basis": "文件标记"
+      },
+      "target": {
+        "index": 0,
+        "x": 0.36769,
+        "y": 0.23505,
+        "width": 0.31987,
+        "height": 0.18002,
+        "pixel_width": 301,
+        "pixel_height": 301,
+        "detection_confidence": 0.963,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 210,
+          "top": 257,
+          "right": 782,
+          "bottom": 829
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 85.9,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.7,
+            "nose_lips": 8.6,
+            "harmony": 8.6,
+            "face_shape": 8.6,
+            "skin": 8.3
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 73,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-photo-tags-20261014-2",
+          "dimensions": {
+            "light": 8,
+            "clarity": 7,
+            "composition": 7,
+            "color": 8,
+            "background": 6
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 72.5,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.5,
+            "waist": null,
+            "hips": null,
+            "legs": 7.0,
+            "proportion": null,
+            "harmony": 7.0
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/c6253a37-d71d-4b2f-b37d-ebcdbe84b582",
+          "exists": true,
+          "sha256": "c47fa80ea56f0b7e0dd8775de90548162ce1d839efe88661259f2429ec4b5ce9"
+        },
+        "crop": {
+          "path": "data/crops/c6253a37-d71d-4b2f-b37d-ebcdbe84b582.jpg",
+          "exists": true,
+          "sha256": "dee484416da184e3bfc1d224f5081eb02dea76b6140f30b951ff9d5716212dd6"
+        }
+      }
+    },
+    {
+      "id": "bd9ea3b1-1c22-40d7-b301-fd9a267d2755",
+      "filename": "02_cozy_portrait_by_the_feathered_lamp.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "ai",
+      "source_display": {
+        "label": "AI 图片",
+        "basis": "用户确认",
+        "platform": "ChatGPT",
+        "platform_basis": "文件标记"
+      },
+      "target": {
+        "index": 0,
+        "x": 0.43039,
+        "y": 0.34809,
+        "width": 0.24973,
+        "height": 0.14055,
+        "pixel_width": 235,
+        "pixel_height": 235,
+        "detection_confidence": 0.86,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 299,
+          "top": 476,
+          "right": 745,
+          "bottom": 922
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 89.0,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 9.0,
+            "nose_lips": 8.9,
+            "harmony": 9.0,
+            "face_shape": 8.9,
+            "skin": 8.4
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 67,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-20261014-1",
+          "dimensions": {
+            "light": 7,
+            "clarity": 7,
+            "composition": 6,
+            "color": 7,
+            "background": 6
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 67.1,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.0,
+            "waist": 6.0,
+            "hips": null,
+            "legs": null,
+            "proportion": 7.0,
+            "harmony": 7.0
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/bd9ea3b1-1c22-40d7-b301-fd9a267d2755",
+          "exists": true,
+          "sha256": "fdbca577b8a054670f7cbf8c53cca51a546227444caa60a7ad36052d3dac603c"
+        },
+        "crop": {
+          "path": "data/crops/bd9ea3b1-1c22-40d7-b301-fd9a267d2755.jpg",
+          "exists": true,
+          "sha256": "c47303122c9d3e9166237640050ce839eed066208dc1b639452db88a55db02bb"
+        }
+      }
+    },
+    {
+      "id": "495aec24-f313-4b9a-bb51-60f70d2f17f0",
+      "filename": "03_cozy_bedroom_portrait_with_plush_toys.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "ai",
+      "source_display": {
+        "label": "AI 图片",
+        "basis": "用户确认",
+        "platform": "ChatGPT",
+        "platform_basis": "文件标记"
+      },
+      "target": {
+        "index": 0,
+        "x": 0.39957,
+        "y": 0.21411,
+        "width": 0.23273,
+        "height": 0.13098,
+        "pixel_width": 219,
+        "pixel_height": 219,
+        "detection_confidence": 0.794,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 277,
+          "top": 259,
+          "right": 693,
+          "bottom": 675
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 86.9,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.8,
+            "nose_lips": 8.6,
+            "harmony": 8.8,
+            "face_shape": 8.7,
+            "skin": 8.3
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 73,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-20261014-1",
+          "dimensions": {
+            "light": 8,
+            "clarity": 8,
+            "composition": 7,
+            "color": 7,
+            "background": 6
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 75.1,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.8,
+            "waist": 7.5,
+            "hips": 6.8,
+            "legs": 7.6,
+            "proportion": 7.5,
+            "harmony": 7.7
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/495aec24-f313-4b9a-bb51-60f70d2f17f0",
+          "exists": true,
+          "sha256": "241b6419a8c89db186a22fe4169686cd503c0e29562d180463b31e3f99cd9f71"
+        },
+        "crop": {
+          "path": "data/crops/495aec24-f313-4b9a-bb51-60f70d2f17f0.jpg",
+          "exists": true,
+          "sha256": "2053d59f411e8549080e819e9a8b3a7f393b6fb6a647cfef78be826ba707c8c5"
+        }
+      }
+    },
+    {
+      "id": "d08a4166-397d-48ea-b2ec-c1ed64337594",
+      "filename": "04_elegant_living_room_selfie.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "ai",
+      "source_display": {
+        "label": "AI 图片",
+        "basis": "用户确认",
+        "platform": "ChatGPT",
+        "platform_basis": "文件标记"
+      },
+      "target": {
+        "x": 0.31031,
+        "y": 0.26675,
+        "width": 0.46015,
+        "height": 0.25897,
+        "pixel_width": 433,
+        "pixel_height": 432,
+        "selection": "user",
+        "transform": {
+          "left": 97,
+          "top": 251,
+          "right": 919,
+          "bottom": 1073
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 87.6,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.9,
+            "nose_lips": 8.6,
+            "harmony": 8.8,
+            "face_shape": 8.8,
+            "skin": 8.6
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 77,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-20261014-1",
+          "dimensions": {
+            "light": 8,
+            "clarity": 8,
+            "composition": 7,
+            "color": 8,
+            "background": 7
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 72.5,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.5,
+            "waist": 7.0,
+            "hips": null,
+            "legs": null,
+            "proportion": 7.0,
+            "harmony": 7.5
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/d08a4166-397d-48ea-b2ec-c1ed64337594",
+          "exists": true,
+          "sha256": "973650ad98dd05235fa2f811214024d53b17d6bba5de3662f0251ebb6f47a5dc"
+        },
+        "crop": {
+          "path": "data/crops/d08a4166-397d-48ea-b2ec-c1ed64337594.jpg",
+          "exists": true,
+          "sha256": "761ec40a9380e9840b0eecf49ee95e0882bc5a2870fc12678d9d3a13a823b30c"
+        }
+      }
+    },
+    {
+      "id": "7b0c1f88-9699-4508-ab85-dad147ea7601",
+      "filename": "05_cozy_bedroom_streamer_portrait.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "ai",
+      "source_display": {
+        "label": "AI 图片",
+        "basis": "用户确认",
+        "platform": "ChatGPT",
+        "platform_basis": "文件标记"
+      },
+      "target": {
+        "index": 0,
+        "x": 0.40489,
+        "y": 0.189,
+        "width": 0.22954,
+        "height": 0.12919,
+        "pixel_width": 216,
+        "pixel_height": 216,
+        "detection_confidence": 0.952,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 283,
+          "top": 218,
+          "right": 694,
+          "bottom": 629
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 86.3,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.7,
+            "nose_lips": 8.6,
+            "harmony": 8.7,
+            "face_shape": 8.6,
+            "skin": 8.4
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 73,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-20261014-1",
+          "dimensions": {
+            "light": 8,
+            "clarity": 7,
+            "composition": 7,
+            "color": 8,
+            "background": 6
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 72.1,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.5,
+            "waist": 7.0,
+            "hips": null,
+            "legs": 7.0,
+            "proportion": 7.0,
+            "harmony": 7.5
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/7b0c1f88-9699-4508-ab85-dad147ea7601",
+          "exists": true,
+          "sha256": "8ee62043e3fe5c7988385c29dce01ad84c08cedff52a363a29f0fe39cf22dce8"
+        },
+        "crop": {
+          "path": "data/crops/7b0c1f88-9699-4508-ab85-dad147ea7601.jpg",
+          "exists": true,
+          "sha256": "6ef070f107175e28e642b196be499668d0a6120096780c44e20fd35be798c820"
+        }
+      }
+    },
+    {
+      "id": "752b5849-272a-445b-b0a3-7affb8e97b20",
+      "filename": "06_soft_green_bedroom_portrait.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "ai",
+      "source_display": {
+        "label": "AI 图片",
+        "basis": "用户确认",
+        "platform": "ChatGPT",
+        "platform_basis": "文件标记"
+      },
+      "target": {
+        "index": 0,
+        "x": 0.40595,
+        "y": 0.23804,
+        "width": 0.2933,
+        "height": 0.16507,
+        "pixel_width": 276,
+        "pixel_height": 276,
+        "detection_confidence": 0.899,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 257,
+          "top": 273,
+          "right": 782,
+          "bottom": 798
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 86.6,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.8,
+            "nose_lips": 8.7,
+            "harmony": 8.7,
+            "face_shape": 8.6,
+            "skin": 8.3
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 75,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-20261014-1",
+          "dimensions": {
+            "light": 8,
+            "clarity": 8,
+            "composition": 7,
+            "color": 7,
+            "background": 7
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 72.1,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.5,
+            "waist": 7.0,
+            "hips": null,
+            "legs": 7.0,
+            "proportion": 7.0,
+            "harmony": 7.5
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/752b5849-272a-445b-b0a3-7affb8e97b20",
+          "exists": true,
+          "sha256": "a77e416d62965849950d0ecb7054f529883c6ab69677dd42c16a551078b2a54b"
+        },
+        "crop": {
+          "path": "data/crops/752b5849-272a-445b-b0a3-7affb8e97b20.jpg",
+          "exists": true,
+          "sha256": "c73487fadf6ba982fdc9e60023935e6717eda2d1256e318e62fc45bc216c4da0"
+        }
+      }
+    },
+    {
+      "id": "0088566e-7a7f-4018-8b37-da2a4984fd41",
+      "filename": "07_elegant_purple_dress_lobby_portrait.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "ai",
+      "source_display": {
+        "label": "AI 图片",
+        "basis": "用户确认",
+        "platform": "ChatGPT",
+        "platform_basis": "文件标记"
+      },
+      "target": {
+        "index": 0,
+        "x": 0.41658,
+        "y": 0.11603,
+        "width": 0.25824,
+        "height": 0.14533,
+        "pixel_width": 243,
+        "pixel_height": 243,
+        "detection_confidence": 0.641,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 282,
+          "top": 84,
+          "right": 744,
+          "bottom": 546
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 88.2,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 9.0,
+            "nose_lips": 8.8,
+            "harmony": 8.9,
+            "face_shape": 8.8,
+            "skin": 8.3
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 75,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-20261014-1",
+          "dimensions": {
+            "light": 8,
+            "clarity": 8,
+            "composition": 7,
+            "color": 8,
+            "background": 6
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 76.4,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.8,
+            "waist": 7.5,
+            "hips": 7.6,
+            "legs": 7.4,
+            "proportion": 7.7,
+            "harmony": 7.8
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/0088566e-7a7f-4018-8b37-da2a4984fd41",
+          "exists": true,
+          "sha256": "19cbce4a2a183c03319c8a427a1cc1b47fcb0384a71538543cf7396e3c3949a5"
+        },
+        "crop": {
+          "path": "data/crops/0088566e-7a7f-4018-8b37-da2a4984fd41.jpg",
+          "exists": true,
+          "sha256": "dcc0f06bc1618e0477eb9e112b54aa484ba5c0aa4cd7705f49a00c05802ccc8f"
+        }
+      }
+    },
+    {
+      "id": "514acb08-ade2-403e-bc2c-6bf7abec406b",
+      "filename": "08_elegant_lace_dress_portrait.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "ai",
+      "source_display": {
+        "label": "AI 图片",
+        "basis": "用户确认",
+        "platform": "ChatGPT",
+        "platform_basis": "文件标记"
+      },
+      "target": {
+        "index": 0,
+        "x": 0.37301,
+        "y": 0.24402,
+        "width": 0.26036,
+        "height": 0.14653,
+        "pixel_width": 245,
+        "pixel_height": 245,
+        "detection_confidence": 0.936,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 240,
+          "top": 297,
+          "right": 706,
+          "bottom": 763
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 86.9,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.8,
+            "nose_lips": 8.6,
+            "harmony": 8.8,
+            "face_shape": 8.7,
+            "skin": 8.3
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 73,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-20261014-1",
+          "dimensions": {
+            "light": 8,
+            "clarity": 8,
+            "composition": 7,
+            "color": 7,
+            "background": 6
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 71.8,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.5,
+            "waist": 6.5,
+            "hips": null,
+            "legs": 7.5,
+            "proportion": 7.0,
+            "harmony": 7.5
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/514acb08-ade2-403e-bc2c-6bf7abec406b",
+          "exists": true,
+          "sha256": "a8846085c43ac596baeff0bae8d301e0ee57e30d7fabb56195f80ac82ad24699"
+        },
+        "crop": {
+          "path": "data/crops/514acb08-ade2-403e-bc2c-6bf7abec406b.jpg",
+          "exists": true,
+          "sha256": "191298f0f5cf0a1bebd4b264a8ee0d3f26a1ca47ba5e3e9e0bc8092ad5f34214"
+        }
+      }
+    },
+    {
+      "id": "3f7b8654-e406-4374-a845-7f769b6b4bd9",
+      "filename": "image_76c801.jpg",
+      "width": 306,
+      "height": 512,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "unknown",
+      "source_display": {
+        "label": "无法确认",
+        "basis": null,
+        "platform": null,
+        "platform_basis": null
+      },
+      "target": {
+        "index": 0,
+        "x": 0.30392,
+        "y": 0.27344,
+        "width": 0.33987,
+        "height": 0.20312,
+        "pixel_width": 104,
+        "pixel_height": 104,
+        "detection_confidence": 0.959,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 46,
+          "top": 93,
+          "right": 243,
+          "bottom": 290
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 83.0,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.2,
+            "nose_lips": 8.5,
+            "harmony": 8.5,
+            "face_shape": 8.4,
+            "skin": 7.3
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 74,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-photo-tags-20261014-2",
+          "dimensions": {
+            "light": 8,
+            "clarity": 6,
+            "composition": 7,
+            "color": 8,
+            "background": 8
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 70.0,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.0,
+            "waist": 7.0,
+            "hips": null,
+            "legs": null,
+            "proportion": 7.0,
+            "harmony": 7.0
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/3f7b8654-e406-4374-a845-7f769b6b4bd9",
+          "exists": true,
+          "sha256": "2854ad3bc1366207a2a1437c181bbe78eb42b1ffb25ee5d9c6533d9d5e69a029"
+        },
+        "crop": {
+          "path": "data/crops/3f7b8654-e406-4374-a845-7f769b6b4bd9.jpg",
+          "exists": true,
+          "sha256": "17294da0c7bc9351cdcdd64c884496428bafc55785ee7fbaae4d57ec484fedd9"
+        }
+      }
+    },
+    {
+      "id": "a1217f4e-b514-4e6c-b153-ef5fc500595b",
+      "filename": "树荫下的夏日街角.png",
+      "width": 1086,
+      "height": 1448,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "unknown",
+      "source_display": {
+        "label": "含 AI 生成标记",
+        "basis": "文件标记",
+        "platform": null,
+        "platform_basis": null
+      },
+      "target": {
+        "x": 0.39594843462246776,
+        "y": 0.3798342541436464,
+        "width": 0.1289134438305709,
+        "height": 0.12430939226519337,
+        "pixel_width": 140,
+        "pixel_height": 180,
+        "selection": "user",
+        "transform": {
+          "left": 329,
+          "top": 469,
+          "right": 671,
+          "bottom": 811
+        }
+      },
+      "detected_faces_count": 0,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 82.5,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.5,
+            "nose_lips": 8.2,
+            "harmony": 8.3,
+            "face_shape": 8.2,
+            "skin": 7.8
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 77,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-photo-tags-20261014-2",
+          "dimensions": {
+            "light": 8,
+            "clarity": 8,
+            "composition": 7,
+            "color": 8,
+            "background": 7
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 70.7,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.0,
+            "waist": 7.0,
+            "hips": null,
+            "legs": null,
+            "proportion": 7.0,
+            "harmony": 7.5
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/a1217f4e-b514-4e6c-b153-ef5fc500595b",
+          "exists": true,
+          "sha256": "a95249d652491c7ace3135a22fe610cb958902d5dd26676d16857671344681c3"
+        },
+        "crop": {
+          "path": "data/crops/a1217f4e-b514-4e6c-b153-ef5fc500595b.jpg",
+          "exists": true,
+          "sha256": "9d25b104f12fb77b8360e22b5692bfcd9b58912183c4edea1b8c53bfd42b61fd"
+        }
+      }
+    },
+    {
+      "id": "fca059e6-04c0-4222-a74b-ff83c250a4a0",
+      "filename": "Modern Braid and Sneakers Selfie.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "unknown",
+      "source_display": {
+        "label": "含 AI 生成标记",
+        "basis": "文件标记",
+        "platform": null,
+        "platform_basis": null
+      },
+      "target": {
+        "index": 0,
+        "x": 0.33475,
+        "y": 0.13397,
+        "width": 0.24123,
+        "height": 0.13577,
+        "pixel_width": 227,
+        "pixel_height": 227,
+        "detection_confidence": 0.977,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 212,
+          "top": 121,
+          "right": 644,
+          "bottom": 553
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 86.4,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.8,
+            "nose_lips": 8.6,
+            "harmony": 8.7,
+            "face_shape": 8.6,
+            "skin": 8.3
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 67,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-photo-tags-20261014-2",
+          "dimensions": {
+            "light": 7,
+            "clarity": 7,
+            "composition": 6,
+            "color": 7,
+            "background": 6
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 73.2,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.5,
+            "waist": 7.2,
+            "hips": 7.0,
+            "legs": 7.6,
+            "proportion": 7.1,
+            "harmony": 7.5
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/fca059e6-04c0-4222-a74b-ff83c250a4a0",
+          "exists": true,
+          "sha256": "e1ca0ae313516966b39eaa790e6f17d1a556170cd2a74c5dc03d5887bf21b7f8"
+        },
+        "crop": {
+          "path": "data/crops/fca059e6-04c0-4222-a74b-ff83c250a4a0.jpg",
+          "exists": true,
+          "sha256": "901eff6cc9545d4060e8a4661a71e28d53cf0f15fdf98d5ae9eb6fb8b136d800"
+        }
+      }
+    },
+    {
+      "id": "72665812-92b6-4688-8afe-0b5b40ad7624",
+      "filename": "窗边微笑的春日女孩.png",
+      "width": 941,
+      "height": 1672,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "unknown",
+      "source_display": {
+        "label": "含 AI 生成标记",
+        "basis": "文件标记",
+        "platform": null,
+        "platform_basis": null
+      },
+      "target": {
+        "index": 0,
+        "x": 0.339,
+        "y": 0.17225,
+        "width": 0.24973,
+        "height": 0.14055,
+        "pixel_width": 235,
+        "pixel_height": 235,
+        "detection_confidence": 0.92,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 213,
+          "top": 182,
+          "right": 659,
+          "bottom": 628
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 86.2,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 8.7,
+            "nose_lips": 8.6,
+            "harmony": 8.7,
+            "face_shape": 8.6,
+            "skin": 8.3
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 77,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-photo-tags-20261014-2",
+          "dimensions": {
+            "light": 8,
+            "clarity": 8,
+            "composition": 7,
+            "color": 8,
+            "background": 7
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 73.5,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.5,
+            "waist": null,
+            "hips": null,
+            "legs": null,
+            "proportion": 7.0,
+            "harmony": 7.5
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/72665812-92b6-4688-8afe-0b5b40ad7624",
+          "exists": true,
+          "sha256": "f98e92c592670d2d25b1073e40b31f09952012430b5db1f85206f5967eed4174"
+        },
+        "crop": {
+          "path": "data/crops/72665812-92b6-4688-8afe-0b5b40ad7624.jpg",
+          "exists": true,
+          "sha256": "637524d3a9d698ea9d792ba34d509a82bf6c1100cb9d60891437abe319f07389"
+        }
+      }
+    },
+    {
+      "id": "0e0b04d2-c293-4011-b62b-62013089085b",
+      "filename": "雪山草地白裙写真_16x9.png",
+      "width": 1408,
+      "height": 768,
+      "retained": true,
+      "adult_confirmed_recorded": true,
+      "external_consent_recorded": true,
+      "external_scope": "full_image",
+      "user_source": "unknown",
+      "source_display": {
+        "label": "含 AI 生成标记",
+        "basis": "文件标记",
+        "platform": null,
+        "platform_basis": null
+      },
+      "target": {
+        "index": 0,
+        "x": 0.30185,
+        "y": 0.21224,
+        "width": 0.16335,
+        "height": 0.29948,
+        "pixel_width": 230,
+        "pixel_height": 230,
+        "detection_confidence": 0.506,
+        "detector": "MediaPipe BlazeFace",
+        "transform": {
+          "left": 321,
+          "top": 59,
+          "right": 758,
+          "bottom": 496
+        }
+      },
+      "detected_faces_count": 1,
+      "assessments": {
+        "face": {
+          "status": "completed",
+          "total": 78.1,
+          "rubric_version": "portrait-face-0.8",
+          "prompt_version": "portrait-face-bands-20261014-1",
+          "dimensions": {
+            "eyes": 7.8,
+            "nose_lips": 7.8,
+            "harmony": 8.1,
+            "face_shape": 8.0,
+            "skin": 6.6
+          }
+        },
+        "photography": {
+          "status": "completed",
+          "total": 80,
+          "rubric_version": "portrait-experimental-0.1",
+          "prompt_version": "portrait-photo-tags-20261014-2",
+          "dimensions": {
+            "light": 8,
+            "clarity": 8,
+            "composition": 8,
+            "color": 8,
+            "background": 8
+          }
+        },
+        "body": {
+          "status": "completed",
+          "total": 68.5,
+          "rubric_version": "body-appearance-3.0",
+          "prompt_version": "portrait-body-parts-20261014-5",
+          "dimensions": {
+            "chest": 7.0,
+            "waist": null,
+            "hips": null,
+            "legs": null,
+            "proportion": 6.5,
+            "harmony": 7.0
+          }
+        }
+      },
+      "files": {
+        "original": {
+          "path": "data/assets/0e0b04d2-c293-4011-b62b-62013089085b",
+          "exists": true,
+          "sha256": "17b2837e616e9ddb0ec85533b3703e121e71c030d2ba7c930277955e417a64a3"
+        },
+        "crop": {
+          "path": "data/crops/0e0b04d2-c293-4011-b62b-62013089085b.jpg",
+          "exists": true,
+          "sha256": "3dba262ea24d6bda42705ed89e57124877df583c6a2ea0873a7dea9e103e7e14"
+        }
+      }
+    }
+  ]
+}

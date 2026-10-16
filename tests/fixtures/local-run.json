@@ -1,0 +1,408 @@
+{
+  "project_id": "b05c8574-b071-4847-bec6-6fb1b27b62b6",
+  "samples": [
+    {
+      "sample": "01",
+      "asset_id": "c6253a37-d71d-4b2f-b37d-ebcdbe84b582",
+      "faces": 1,
+      "gate": {
+        "assessable": true,
+        "limitations": [],
+        "metrics": {
+          "luminance": 112.4,
+          "blur_variance": 161.0,
+          "dark_fraction": 0.018,
+          "bright_fraction": 0.0,
+          "note": "这些是图像测量值，不是美感分或真实性概率。"
+        },
+        "note": "自动门槛仅作初筛；遮挡、角度和表情仍需在语义评估中逐项判断。"
+      },
+      "provenance": {
+        "category": "unknown",
+        "platform": null,
+        "evidence_level": "unverified",
+        "manifest_status": "invalid",
+        "signature_status": "valid",
+        "asset_binding_status": "valid",
+        "signer_trust": "untrusted",
+        "evidence": [
+          {
+            "type": "c2pa_manifest",
+            "level": "parsed",
+            "title": "image.png",
+            "claim_generator": "",
+            "validation_issues": [
+              "signingCredential.untrusted"
+            ]
+          },
+          {
+            "type": "user_statement",
+            "level": "unverified",
+            "title": "用户声明",
+            "value": "用户声明：AI生成/编辑的成年人物素材；优化版代表照"
+          }
+        ],
+        "limitations": [
+          "未发现可展示的 EXIF；这不能证明图片由 AI 生成",
+          "仅离线验证内嵌凭据；不获取远程凭据或在线吊销状态",
+          "内容凭据存在验证问题；不能据此进行平台归因",
+          "没有可信的生成或拍摄来源证据，具体平台与内容类别无法确认"
+        ]
+      },
+      "job_id": "13f7cadd-bc09-4da7-95a4-b8d03da849c1"
+    },
+    {
+      "sample": "02",
+      "asset_id": "bd9ea3b1-1c22-40d7-b301-fd9a267d2755",
+      "faces": 1,
+      "gate": {
+        "assessable": true,
+        "limitations": [],
+        "metrics": {
+          "luminance": 151.5,
+          "blur_variance": 228.4,
+          "dark_fraction": 0.0,
+          "bright_fraction": 0.0,
+          "note": "这些是图像测量值，不是美感分或真实性概率。"
+        },
+        "note": "自动门槛仅作初筛；遮挡、角度和表情仍需在语义评估中逐项判断。"
+      },
+      "provenance": {
+        "category": "unknown",
+        "platform": null,
+        "evidence_level": "unverified",
+        "manifest_status": "invalid",
+        "signature_status": "valid",
+        "asset_binding_status": "valid",
+        "signer_trust": "untrusted",
+        "evidence": [
+          {
+            "type": "c2pa_manifest",
+            "level": "parsed",
+            "title": "image.png",
+            "claim_generator": "",
+            "validation_issues": [
+              "signingCredential.invalid",
+              "signingCredential.untrusted"
+            ]
+          },
+          {
+            "type": "user_statement",
+            "level": "unverified",
+            "title": "用户声明",
+            "value": "用户声明：AI生成/编辑的成年人物素材；优化版代表照"
+          }
+        ],
+        "limitations": [
+          "未发现可展示的 EXIF；这不能证明图片由 AI 生成",
+          "仅离线验证内嵌凭据；不获取远程凭据或在线吊销状态",
+          "内容凭据存在验证问题；不能据此进行平台归因",
+          "没有可信的生成或拍摄来源证据，具体平台与内容类别无法确认"
+        ]
+      },
+      "job_id": "780cf97c-ac2f-4585-9291-98339c0980c0"
+    },
+    {
+      "sample": "03",
+      "asset_id": "495aec24-f313-4b9a-bb51-60f70d2f17f0",
+      "faces": 1,
+      "gate": {
+        "assessable": true,
+        "limitations": [],
+        "metrics": {
+          "luminance": 132.3,
+          "blur_variance": 236.8,
+          "dark_fraction": 0.018,
+          "bright_fraction": 0.0,
+          "note": "这些是图像测量值，不是美感分或真实性概率。"
+        },
+        "note": "自动门槛仅作初筛；遮挡、角度和表情仍需在语义评估中逐项判断。"
+      },
+      "provenance": {
+        "category": "unknown",
+        "platform": null,
+        "evidence_level": "unverified",
+        "manifest_status": "invalid",
+        "signature_status": "valid",
+        "asset_binding_status": "valid",
+        "signer_trust": "untrusted",
+        "evidence": [
+          {
+            "type": "c2pa_manifest",
+            "level": "parsed",
+            "title": "image.png",
+            "claim_generator": "",
+            "validation_issues": [
+              "signingCredential.untrusted"
+            ]
+          },
+          {
+            "type": "user_statement",
+            "level": "unverified",
+            "title": "用户声明",
+            "value": "用户声明：AI生成/编辑的成年人物素材；优化版代表照"
+          }
+        ],
+        "limitations": [
+          "未发现可展示的 EXIF；这不能证明图片由 AI 生成",
+          "仅离线验证内嵌凭据；不获取远程凭据或在线吊销状态",
+          "内容凭据存在验证问题；不能据此进行平台归因",
+          "没有可信的生成或拍摄来源证据，具体平台与内容类别无法确认"
+        ]
+      },
+      "job_id": "ecd07545-d1b8-41f6-aed1-17d55444af19"
+    },
+    {
+      "sample": "04",
+      "asset_id": "d08a4166-397d-48ea-b2ec-c1ed64337594",
+      "faces": 1,
+      "gate": {
+        "assessable": true,
+        "limitations": [],
+        "metrics": {
+          "luminance": 140.5,
+          "blur_variance": 108.6,
+          "dark_fraction": 0.008,
+          "bright_fraction": 0.0,
+          "note": "这些是图像测量值，不是美感分或真实性概率。"
+        },
+        "note": "自动门槛仅作初筛；遮挡、角度和表情仍需在语义评估中逐项判断。"
+      },
+      "provenance": {
+        "category": "unknown",
+        "platform": null,
+        "evidence_level": "unverified",
+        "manifest_status": "invalid",
+        "signature_status": "valid",
+        "asset_binding_status": "valid",
+        "signer_trust": "untrusted",
+        "evidence": [
+          {
+            "type": "c2pa_manifest",
+            "level": "parsed",
+            "title": "image.png",
+            "claim_generator": "",
+            "validation_issues": [
+              "signingCredential.untrusted"
+            ]
+          },
+          {
+            "type": "user_statement",
+            "level": "unverified",
+            "title": "用户声明",
+            "value": "用户声明：AI生成/编辑的成年人物素材；优化版代表照"
+          }
+        ],
+        "limitations": [
+          "未发现可展示的 EXIF；这不能证明图片由 AI 生成",
+          "仅离线验证内嵌凭据；不获取远程凭据或在线吊销状态",
+          "内容凭据存在验证问题；不能据此进行平台归因",
+          "没有可信的生成或拍摄来源证据，具体平台与内容类别无法确认"
+        ]
+      },
+      "job_id": "fcebcd1e-fe6e-4b40-9ff6-58157cac8704"
+    },
+    {
+      "sample": "05",
+      "asset_id": "7b0c1f88-9699-4508-ab85-dad147ea7601",
+      "faces": 1,
+      "gate": {
+        "assessable": true,
+        "limitations": [],
+        "metrics": {
+          "luminance": 134.3,
+          "blur_variance": 199.2,
+          "dark_fraction": 0.082,
+          "bright_fraction": 0.0,
+          "note": "这些是图像测量值，不是美感分或真实性概率。"
+        },
+        "note": "自动门槛仅作初筛；遮挡、角度和表情仍需在语义评估中逐项判断。"
+      },
+      "provenance": {
+        "category": "unknown",
+        "platform": null,
+        "evidence_level": "unverified",
+        "manifest_status": "invalid",
+        "signature_status": "valid",
+        "asset_binding_status": "valid",
+        "signer_trust": "untrusted",
+        "evidence": [
+          {
+            "type": "c2pa_manifest",
+            "level": "parsed",
+            "title": "image.png",
+            "claim_generator": "",
+            "validation_issues": [
+              "signingCredential.untrusted"
+            ]
+          },
+          {
+            "type": "user_statement",
+            "level": "unverified",
+            "title": "用户声明",
+            "value": "用户声明：AI生成/编辑的成年人物素材；优化版代表照"
+          }
+        ],
+        "limitations": [
+          "未发现可展示的 EXIF；这不能证明图片由 AI 生成",
+          "仅离线验证内嵌凭据；不获取远程凭据或在线吊销状态",
+          "内容凭据存在验证问题；不能据此进行平台归因",
+          "没有可信的生成或拍摄来源证据，具体平台与内容类别无法确认"
+        ]
+      },
+      "job_id": "dd28c8ff-4d40-48aa-b7f7-000b8b0baef4"
+    },
+    {
+      "sample": "06",
+      "asset_id": "752b5849-272a-445b-b0a3-7affb8e97b20",
+      "faces": 1,
+      "gate": {
+        "assessable": true,
+        "limitations": [],
+        "metrics": {
+          "luminance": 130.1,
+          "blur_variance": 541.9,
+          "dark_fraction": 0.06,
+          "bright_fraction": 0.002,
+          "note": "这些是图像测量值，不是美感分或真实性概率。"
+        },
+        "note": "自动门槛仅作初筛；遮挡、角度和表情仍需在语义评估中逐项判断。"
+      },
+      "provenance": {
+        "category": "unknown",
+        "platform": null,
+        "evidence_level": "unverified",
+        "manifest_status": "invalid",
+        "signature_status": "valid",
+        "asset_binding_status": "valid",
+        "signer_trust": "untrusted",
+        "evidence": [
+          {
+            "type": "c2pa_manifest",
+            "level": "parsed",
+            "title": "image.png",
+            "claim_generator": "",
+            "validation_issues": [
+              "signingCredential.invalid",
+              "signingCredential.untrusted"
+            ]
+          },
+          {
+            "type": "user_statement",
+            "level": "unverified",
+            "title": "用户声明",
+            "value": "用户声明：AI生成/编辑的成年人物素材；优化版代表照"
+          }
+        ],
+        "limitations": [
+          "未发现可展示的 EXIF；这不能证明图片由 AI 生成",
+          "仅离线验证内嵌凭据；不获取远程凭据或在线吊销状态",
+          "内容凭据存在验证问题；不能据此进行平台归因",
+          "没有可信的生成或拍摄来源证据，具体平台与内容类别无法确认"
+        ]
+      },
+      "job_id": "f2633a89-872a-409f-96fc-ca5e3d2c0e24"
+    },
+    {
+      "sample": "07",
+      "asset_id": "0088566e-7a7f-4018-8b37-da2a4984fd41",
+      "faces": 1,
+      "gate": {
+        "assessable": true,
+        "limitations": [],
+        "metrics": {
+          "luminance": 93.0,
+          "blur_variance": 177.8,
+          "dark_fraction": 0.075,
+          "bright_fraction": 0.0,
+          "note": "这些是图像测量值，不是美感分或真实性概率。"
+        },
+        "note": "自动门槛仅作初筛；遮挡、角度和表情仍需在语义评估中逐项判断。"
+      },
+      "provenance": {
+        "category": "unknown",
+        "platform": null,
+        "evidence_level": "unverified",
+        "manifest_status": "invalid",
+        "signature_status": "valid",
+        "asset_binding_status": "valid",
+        "signer_trust": "untrusted",
+        "evidence": [
+          {
+            "type": "c2pa_manifest",
+            "level": "parsed",
+            "title": "image.png",
+            "claim_generator": "",
+            "validation_issues": [
+              "signingCredential.untrusted"
+            ]
+          },
+          {
+            "type": "user_statement",
+            "level": "unverified",
+            "title": "用户声明",
+            "value": "用户声明：AI生成/编辑的成年人物素材；优化版代表照"
+          }
+        ],
+        "limitations": [
+          "未发现可展示的 EXIF；这不能证明图片由 AI 生成",
+          "仅离线验证内嵌凭据；不获取远程凭据或在线吊销状态",
+          "内容凭据存在验证问题；不能据此进行平台归因",
+          "没有可信的生成或拍摄来源证据，具体平台与内容类别无法确认"
+        ]
+      },
+      "job_id": "f5a2f3c9-fbbe-4aac-80a1-adee85114faa"
+    },
+    {
+      "sample": "08",
+      "asset_id": "514acb08-ade2-403e-bc2c-6bf7abec406b",
+      "faces": 1,
+      "gate": {
+        "assessable": true,
+        "limitations": [],
+        "metrics": {
+          "luminance": 144.9,
+          "blur_variance": 1055.5,
+          "dark_fraction": 0.03,
+          "bright_fraction": 0.001,
+          "note": "这些是图像测量值，不是美感分或真实性概率。"
+        },
+        "note": "自动门槛仅作初筛；遮挡、角度和表情仍需在语义评估中逐项判断。"
+      },
+      "provenance": {
+        "category": "unknown",
+        "platform": null,
+        "evidence_level": "unverified",
+        "manifest_status": "invalid",
+        "signature_status": "valid",
+        "asset_binding_status": "valid",
+        "signer_trust": "untrusted",
+        "evidence": [
+          {
+            "type": "c2pa_manifest",
+            "level": "parsed",
+            "title": "image.png",
+            "claim_generator": "",
+            "validation_issues": [
+              "signingCredential.invalid",
+              "signingCredential.untrusted"
+            ]
+          },
+          {
+            "type": "user_statement",
+            "level": "unverified",
+            "title": "用户声明",
+            "value": "用户声明：AI生成/编辑的成年人物素材；优化版代表照"
+          }
+        ],
+        "limitations": [
+          "未发现可展示的 EXIF；这不能证明图片由 AI 生成",
+          "仅离线验证内嵌凭据；不获取远程凭据或在线吊销状态",
+          "内容凭据存在验证问题；不能据此进行平台归因",
+          "没有可信的生成或拍摄来源证据，具体平台与内容类别无法确认"
+        ]
+      },
+      "job_id": "b9c97865-3fa2-45ec-853d-161cbf1d77af"
+    }
+  ]
+}
