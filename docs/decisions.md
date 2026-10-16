@@ -169,7 +169,7 @@ V0.1 HTML/JSON；V0.2宫格；V1.0历史/版本对比与CLI/Skill。默认脱敏
 - 上传20MB/2500万像素；本地人脸最短边90px、裁脸160px、清晰度方差25仅作初筛，未宣称经人群数据校准。
 - 每天24次应用模块调用硬限制（失败也计数）；CLI实际金额不可得。诊断调用与应用台账分开记录。取消和删除阻断迟到结果。
 - C2PA使用官方公开信任锚的本地快照，禁用远程凭据、OCSP获取及网络主机访问。8张样本的签名/绑定有效，但存在证书验证问题，保持unknown与platform=null。不能用用户自述覆盖证书问题。
-- CLI使用本机HTTP API；Skill位于 `/Users/neo/.agents/skills/portrait-evaluator/SKILL.md`。无远程发布、无Git推送、无专有水印插件。
+- CLI使用本机HTTP API；Skill位于 `~/.agents/skills/portrait-evaluator/SKILL.md`。无远程发布、无Git推送、无专有水印插件。
 - 完成程度与真实验收证据以 `validation.md` 为准；代码存在或页面构建通过不等于所有计划测试已通过。
 
 ## ADR：选图优先界面与解除日调用限制（2026-10-14）
@@ -225,4 +225,4 @@ V0.1 HTML/JSON；V0.2宫格；V1.0历史/版本对比与CLI/Skill。默认脱敏
 
 用户确定中文名“颜选”，英文名“BeautyPick”，品牌统一显示为“颜选 · BeautyPick”，产品说明为“AI 人像评分与选图”。用户已了解英文同名产品信息，仍选择该名称。同步更新网页标识、浏览器标题、后端服务标题、命令行及项目文档。项目目录随后按用户要求更名为beautypick。配套skill标识portrait-evaluator保持不变，数据库随项目目录迁移。
 
-用户补充确认：项目目录更名为 `/Users/neo/inbox/beautypick`，同步更新配套skill路径、需求文档及Python虚拟环境脚本中的绝对路径；照片、裁脸、数据库和评分历史随目录整体迁移。
+用户补充确认：项目目录更名为 `beautypick`，同步更新配套skill路径、需求文档及Python虚拟环境脚本中的路径；照片、裁脸、数据库和评分历史随目录整体迁移。

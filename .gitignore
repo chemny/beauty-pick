@@ -1,7 +1,13 @@
 .venv/
 web/node_modules/
 data/
-scratch/*.html
+scratch/
+docs/handoff/
+ANTIGRAVITY_*.md
+publish-check-report.json
+se-quality-report.json
+smoke-test-report.json
+node_modules/
 __pycache__/
 .pytest_cache/
 .env

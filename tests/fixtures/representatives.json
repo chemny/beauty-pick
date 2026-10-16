@@ -1,6 +1,6 @@
 {
-  "reference_grid": "/Users/neo/Desktop/girls_8_best_grid.jpg",
-  "source_root": "/Users/neo/Desktop/选美/AI生成人像照片_8人物_17张",
+  "reference_grid": "tests/fixtures/girls_8_best_grid.jpg",
+  "source_root": "tests/fixtures/source",
   "selection_basis": "用户确认拼图中的8张优化版；已逐张视觉核对原图。",
   "adult_confirmed": true,
   "adult_confirmation_basis": "用户明确回复：是，8张都是成年人物素材",

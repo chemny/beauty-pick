@@ -1,0 +1,48 @@
+{
+  "asset_id": "example-uuid-v4",
+  "project_id": "default",
+  "provenance": {
+    "c2pa_status": "present",
+    "exif_summary": {
+      "camera": "Sony A7M4",
+      "lens": "FE 50mm F1.2 GM",
+      "iso": 100,
+      "focal_length": "50mm",
+      "aperture": "f/1.4",
+      "shutter_speed": "1/500s"
+    }
+  },
+  "scores": {
+    "face": {
+      "total": 85.5,
+      "breakdown": {
+        "eyes": 17.2,
+        "nose_lips": 17.0,
+        "harmony": 21.5,
+        "contour": 21.3,
+        "skin": 8.5
+      }
+    },
+    "body": {
+      "total": 88.0,
+      "breakdown": {
+        "shoulder_chest": 22.0,
+        "waist_abdomen": 17.5,
+        "hips": 13.5,
+        "legs": 13.0,
+        "proportion": 13.2,
+        "coordination": 8.8
+      }
+    },
+    "photo": {
+      "total": 91.2,
+      "breakdown": {
+        "exposure": 23.5,
+        "sharpness": 18.2,
+        "composition": 18.0,
+        "color": 18.5,
+        "background_story": 13.0
+      }
+    }
+  }
+}

@@ -78,8 +78,8 @@ AGENT_SKILL_TARGETS=(
     "$HOME/.claude/skills/beauty-pick"
 )
 
-SKILL_TEMPLATE="$ROOT_DIR/skills/beauty-pick/SKILL.md"
-REFS_DIR="$ROOT_DIR/skills/beauty-pick/references"
+SKILL_TEMPLATE="$ROOT_DIR/SKILL.md"
+REFS_DIR="$ROOT_DIR/references"
 
 if [ -f "$SKILL_TEMPLATE" ]; then
     REGISTERED_COUNT=0

@@ -1,6 +1,6 @@
 ---
 name: beauty-pick
-description: 使用本机“颜选 · BeautyPick”应用检查人像来源证据，分别评估颜值、身材与摄影三模块，管理人工分组及已有分项对照排行。适用于用户要求通过该应用评估人像或选片。
+description: 当用户需要使用“颜选 · BeautyPick”应用评估人像照片、分析颜值骨相与身材比例、检查摄影技术质量及对比选片时使用此技能。支持来源凭据检查与多维排行。
 ---
 
 # 颜选 · BeautyPick Skill
@@ -93,5 +93,14 @@ description: 使用本机“颜选 · BeautyPick”应用检查人像来源证�
 
 ## 4. 详细技术参考
 
-关于系统数据模型、FastAPI 端点契约、任务队列机制及备份方案，请查阅配套文档：
+关于系统数据模型、FastAPI 端点契约、任务队列机制及备份方案，请查阅配套文档与模版：
 - [architecture-and-api.md](references/architecture-and-api.md)
+- [templates/report_export_template.json](templates/report_export_template.json)
+
+---
+
+## 5. 注意事项与合规说明
+
+1. **隐私安全**：所有评估均在本地离线或用户配置的受信端点执行，绝不向未授权第三方同步人像图片。
+2. **客观中立**：美学评分基于人体解剖学比例与光学物理参数，仅作为辅助创作与选片参考依据。
+
