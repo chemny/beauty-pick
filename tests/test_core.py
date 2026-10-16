@@ -81,9 +81,12 @@ def test_face_decimal_scores_rounding_missing_and_ranking():
     for invalid in (7.71, float('nan'), float('inf'), True, -0.1, 10.1):
         bad={**raw,'dimensions':[dict(d,score=invalid) if d['key']=='eyes' else d for d in raw['dimensions']]}
         with pytest.raises(ValueError):finalize('face',bad)
-    # Existing photography remains integer-only.
+    # Photography now supports 0.1 decimal precision
     photo={**raw,'dimensions':[dict(key=k,status='assessable',score=7.7,evidence='可见依据',limitations=[]) for k,*_ in RULES['photography']]}
-    with pytest.raises(ValueError):finalize('photography',photo)
+    photo_res = finalize('photography',photo)
+    assert photo_res['total'] == 77.0
+    bad_photo={**raw,'dimensions':[dict(key=k,status='assessable',score=7.71,evidence='可见依据',limitations=[]) for k,*_ in RULES['photography']]}
+    with pytest.raises(ValueError):finalize('photography',bad_photo)
     assert 'FaceDimension' in model_schema('face')['$defs']
     result.update(model='test-model',reasoning_effort='medium')
     asset={'id':'decimal-face','filename':'test.png','adult_confirmed':1,

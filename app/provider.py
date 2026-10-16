@@ -5,6 +5,7 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -359,4 +360,6 @@ def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = 
 
 
 def evaluate(module: str, image_path: Path, cancelled: Callable[[], bool], body_scoring: bool = True) -> tuple[dict, dict]:
+    if cancelled and cancelled():
+        raise ProviderError("用户取消分析")
     return fast_objective_evaluate(module, image_path, body_scoring=body_scoring)
