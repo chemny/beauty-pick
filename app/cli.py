@@ -43,7 +43,8 @@ def main():
                     else:raise ValueError('等待超时；可在界面查看或取消任务')
                     if job['status'] in ('failed','cancelled','interrupted'):
                         raise ValueError(job.get('error') or '任务'+job['status']+'；未返回旧报告冒充本次结果')
-                    response=c.get(f'/api/assets/{args.asset_id}/export.json')
+                    result=json.loads(job.get('result_json') or '{}')
+                    response=c.get(f'/api/assets/{args.asset_id}/export.json',params={'report_id':result['report_id']} if result.get('report_id') else {})
             elif args.command=='export':
                 response=c.get(f'/api/assets/{args.asset_id}/export.{args.format}');response.raise_for_status()
                 with args.output.open('xb') as f:f.write(response.content)

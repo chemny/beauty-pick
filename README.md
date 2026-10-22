@@ -4,7 +4,9 @@ English | [中文](./README.zh.md)
 
 ## Overview
 
-BeautyPick is an objective, multi-dimensional portrait aesthetic assessment and curation system. It integrates computer vision, deep-learning bone structure baselines, and optical physical metrics to deliver continuous 0.1-decimal ratings for facial aesthetics, body proportions, and photographic quality. Built for photographers, digital artists, creators, and developers, it transforms subjective portrait selection into a grounded, reproducible evaluation workflow. It is available both as a standalone local web application and as an out-of-the-box Agent Skill across Google Antigravity, OpenAI Codex, and Claude Code.
+BeautyPick is a local portrait assessment and photo-selection application with an Agent Skill entry point. It provides model-based facial scores and measurement-based body and photography assessments. Scores reflect model preferences and heuristics, not objective beauty or validated anatomical judgments. Normal scoring runs locally without a Codex account.
+
+Current release: **0.2.0**. See [release notes](./CHANGELOG.md).
 
 ## Preview
 
@@ -14,7 +16,7 @@ BeautyPick is an objective, multi-dimensional portrait aesthetic assessment and 
 
 | Capability | What it helps you do |
 |---|---|
-| Facial Aesthetics Assessment | Computes ResNet50 bone-structure baseline scores, golden facial proportions, catchlights, and micro-skin texture while penalizing plastic over-smoothing. |
+| Facial Aesthetics Assessment | Uses a fixed standard face crop and ResNet50 to predict an overall score; does not invent independent facial-part scores. |
 | Body Line & Pose Evaluation | Evaluates shoulder, waist, hip, and leg proportions while decoupling posing tilt from physique ratings and dynamically normalizing visible parts. |
 | Photographic Quality Scoring | Delivers continuous 0.1-decimal scores based on Tenengrad edge gradients, facial exposure, and depth-of-field separation to clearly differentiate photos. |
 | Provenance & Authenticity | Inspects C2PA digital credentials and EXIF metadata to distinguish camera shots, AI generations, and edits. |
@@ -72,9 +74,9 @@ Analyze the pose and lighting of this photo with beauty-pick and provide shootin
 
 ## How It Works
 
-BeautyPick operates through a modular hybrid architecture combining local real-time measurement with agentic reasoning:
+BeautyPick uses local scoring with a separate Agent interface:
 
-1. **Local Objective Physics Engine (`native_apple_mps_resnet50_mediapipe_cv`)**: Runs on hardware-accelerated local frameworks (Apple Silicon MPS / OpenCV / MediaPipe). Measures facial landmarks, bone proportions, Tenengrad sharpness gradients, dynamic range, and subject-to-background blur variance ratios (`dof_separation`).
+1. **Local Scoring**: Face evaluation uses landmark-based square crops with a 12% margin, no rotation and 224×224 input. Existing ResNet50 weights produce one overall score using the legacy display scale. Body and photography use local measurements. Model scores are subjective references; 99-point saturation is a known limitation.
 2. **Body Pose & Physique Decoupling Engine**: Identifies BlazePose 33 skeletal landmarks. Posing actions (e.g. raised shoulders or body tilt) are isolated as creative styling and excluded from body scoring.
 3. **Application & Task Queue Layer**: FastAPI server orchestrating background evaluation queues, caching, and SQLite metadata storage (`data/portrait.db`).
 4. **Agent Skill Contract Layer**: A standard `SKILL.md` entry point defining CLI invocations and Pydantic schema validation.
@@ -109,4 +111,4 @@ Third-party models located in `models/` follow their respective Google MediaPipe
 
 ## About Me
 
-Maintained by [@chemny](https://github.com/chemny). Designed for creators, photographers, and developers seeking scientific, objective, and multi-dimensional portrait quality assessment through AI agents. Feedback and contributions are welcome via GitHub Issues.
+Maintained by [@chemny](https://github.com/chemny). Designed for creators, photographers, and developers seeking local portrait assessment and photo-selection tools through AI agents. Feedback and contributions are welcome via GitHub Issues.

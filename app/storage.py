@@ -171,6 +171,8 @@ def public_asset(row: dict) -> dict:
     photography = (obj['report'] or {}).get('photography', {})
     obj['photo_tags'] = json.loads(row['photo_tags_json']) if row.get('photo_tags_json') else {
         'framing': photography.get('framing'), 'style': photography.get('style')}
+    latest = one("SELECT id,status,error,result_json,updated_at FROM jobs WHERE asset_id=? ORDER BY created_at DESC LIMIT 1", (row["id"],))
+    obj["latest_attempt"] = ({k: v for k, v in latest.items() if k != "result_json"} | {"result": json.loads(latest["result_json"] or "null")} if latest else None)
     obj["preview_url"] = f"/api/assets/{row['id']}/preview"
     obj["crop_url"] = f"/api/assets/{row['id']}/crop" if obj["target"] else None
     return obj

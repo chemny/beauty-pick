@@ -8,24 +8,27 @@ from typing import Any
 from PIL import Image
 
 from .config import ROOT
+from .engine import file_fingerprint
 
 logger = logging.getLogger(__name__)
 
 _MODEL: Any = None
 _DEVICE: Any = None
 _TRANSFORMS: Any = None
+_MODEL_FINGERPRINT = None
 _LOCK = threading.Lock()
 
 MODEL_PATH = ROOT / "models" / "scut_fbp5500_beauty.pt"
 
 
 def _get_model():
-    global _MODEL, _DEVICE, _TRANSFORMS
-    if _MODEL is not None:
+    global _MODEL, _DEVICE, _TRANSFORMS, _MODEL_FINGERPRINT
+    fingerprint = file_fingerprint(MODEL_PATH)
+    if fingerprint and _MODEL is not None and _MODEL_FINGERPRINT == fingerprint:
         return _MODEL, _DEVICE, _TRANSFORMS
 
     with _LOCK:
-        if _MODEL is not None:
+        if fingerprint and _MODEL is not None and _MODEL_FINGERPRINT == fingerprint:
             return _MODEL, _DEVICE, _TRANSFORMS
 
         if not MODEL_PATH.exists():
@@ -55,7 +58,10 @@ def _get_model():
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
 
+        if file_fingerprint(MODEL_PATH) != fingerprint:
+            raise RuntimeError("颜值模型权重在加载期间变化")
         _MODEL, _DEVICE, _TRANSFORMS = model, device, tf
+        _MODEL_FINGERPRINT = fingerprint
         return _MODEL, _DEVICE, _TRANSFORMS
 
 
@@ -142,17 +148,19 @@ def beauty_context_for_prompt(beauty_res: dict) -> str:
 
 
 _FACE_LANDMARKER: Any = None
+_FACE_LANDMARKER_FINGERPRINT = None
 _LANDMARKER_LOCK = threading.Lock()
 FACE_LANDMARKER_PATH = ROOT / "models" / "face_landmarker.task"
 
 
 def _get_face_landmarker():
-    global _FACE_LANDMARKER
-    if _FACE_LANDMARKER is not None:
+    global _FACE_LANDMARKER, _FACE_LANDMARKER_FINGERPRINT
+    fingerprint = file_fingerprint(FACE_LANDMARKER_PATH)
+    if fingerprint and _FACE_LANDMARKER is not None and _FACE_LANDMARKER_FINGERPRINT == fingerprint:
         return _FACE_LANDMARKER
 
     with _LANDMARKER_LOCK:
-        if _FACE_LANDMARKER is not None:
+        if fingerprint and _FACE_LANDMARKER is not None and _FACE_LANDMARKER_FINGERPRINT == fingerprint:
             return _FACE_LANDMARKER
         if not FACE_LANDMARKER_PATH.exists():
             return None
@@ -167,7 +175,12 @@ def _get_face_landmarker():
             output_face_blendshapes=False,
             output_facial_transformation_matrixes=False,
         )
-        _FACE_LANDMARKER = vision.FaceLandmarker.create_from_options(options)
+        landmarker = vision.FaceLandmarker.create_from_options(options)
+        if file_fingerprint(FACE_LANDMARKER_PATH) != fingerprint:
+            landmarker.close()
+            raise RuntimeError("面部关键点权重在加载期间变化")
+        _FACE_LANDMARKER = landmarker
+        _FACE_LANDMARKER_FINGERPRINT = fingerprint
         return _FACE_LANDMARKER
 
 
@@ -185,7 +198,8 @@ def evaluate_face_geometry(image: Image.Image) -> dict:
         rgb = np.asarray(image.convert("RGB"))
         h, w = rgb.shape[:2]
         mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        res = landmarker.detect(mp_img)
+        with _LANDMARKER_LOCK:
+            res = landmarker.detect(mp_img)
 
         if not res.face_landmarks:
             return {"available": False, "error": "未检测到面部关键网格"}

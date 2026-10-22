@@ -10,21 +10,24 @@ import numpy as np
 from PIL import Image
 
 from .config import ROOT
+from .engine import file_fingerprint
 
 logger = logging.getLogger(__name__)
 
 _LANDMARKER: Any = None
+_LANDMARKER_FINGERPRINT = None
 _LOCK = threading.Lock()
 MODEL_PATH = ROOT / "models" / "pose_landmarker_full.task"
 
 
 def _get_landmarker():
-    global _LANDMARKER
-    if _LANDMARKER is not None:
+    global _LANDMARKER, _LANDMARKER_FINGERPRINT
+    fingerprint = file_fingerprint(MODEL_PATH)
+    if fingerprint and _LANDMARKER is not None and _LANDMARKER_FINGERPRINT == fingerprint:
         return _LANDMARKER
 
     with _LOCK:
-        if _LANDMARKER is not None:
+        if fingerprint and _LANDMARKER is not None and _LANDMARKER_FINGERPRINT == fingerprint:
             return _LANDMARKER
 
         if not MODEL_PATH.exists():
@@ -41,7 +44,12 @@ def _get_landmarker():
             min_pose_presence_confidence=0.5,
             min_tracking_confidence=0.5,
         )
-        _LANDMARKER = vision.PoseLandmarker.create_from_options(options)
+        landmarker = vision.PoseLandmarker.create_from_options(options)
+        if file_fingerprint(MODEL_PATH) != fingerprint:
+            landmarker.close()
+            raise RuntimeError("身材关键点权重在加载期间变化")
+        _LANDMARKER = landmarker
+        _LANDMARKER_FINGERPRINT = fingerprint
         return _LANDMARKER
 
 

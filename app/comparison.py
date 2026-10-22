@@ -6,7 +6,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, StrictInt, model_validator
 from . import storage as s
-from .scoring import RULES, total_score, body_total_score, face_total_score, BODY_RUBRIC_VERSION, FACE_RUBRIC_VERSION
+from .scoring import photo_total_score, RULES, total_score, body_total_score, face_total_score, BODY_RUBRIC_VERSION, FACE_RUBRIC_VERSION
 
 router=APIRouter(prefix='/api')
 Module=Literal['face','photography','body']
@@ -42,16 +42,23 @@ def assessment(asset:dict,module:str,weights:dict):
         return None,"未确认成年状态"
     report=json.loads(asset['report_json'] or '{}')
     result=report.get(module,{})
-    if module=='face' and result.get('rubric_version') not in (FACE_RUBRIC_VERSION, 'portrait-face-0.8'):
+    standard_face = module=='face' and result.get('scoring_method')=='standard-face-v1' and result.get('rubric_version')=='standard-face-1.0'
+    if module=='face' and not standard_face and result.get('rubric_version') not in (FACE_RUBRIC_VERSION, 'portrait-face-0.8'):
         return None,'颜值评分待更新'
     if module=='body' and result.get('rubric_version')!=BODY_RUBRIC_VERSION:
         return None,'身材评分待更新'
     dims=result.get('dimensions',[])
     if result.get('total') is None or result.get('status')!='completed':
         return None,'缺少完整可评结果'
-    signature=tuple(result.get(k) for k in ('rubric_version','prompt_version','model','reasoning_effort'))
+    if result.get('engine'):
+        from .engine import signature as engine_signature
+        signature=(result.get('rubric_version'), result.get('prompt_version'), engine_signature(result['engine']))
+    else:
+        signature=tuple(result.get(k) for k in ('rubric_version','prompt_version','model','reasoning_effort'))
     if any(not v for v in signature):return None,'缺少评估版本信息'
-    try: score=(body_total_score if module=='body' else face_total_score if module=='face' else total_score)({d['key']:d['score'] for d in dims},weights)
+    if standard_face and weights != {r[0]:r[2] for r in RULES['face']}:
+        return None,'整体颜值模型不支持分项权重重算'
+    try: score=result['total'] if standard_face else (body_total_score if module=='body' else face_total_score if module=='face' else photo_total_score)({d['key']:d['score'] for d in dims},weights)
     except (ValueError,KeyError):return None,'分项数据不兼容'
     if score is None:return None,'当前权重下可评项目不足'
     return {'asset_id':asset['id'],'filename':asset['filename'],'report_id':report['id'],

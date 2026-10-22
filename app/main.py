@@ -103,8 +103,8 @@ def session():
 def status():
     from .beauty_model import MODEL_PATH as BEAUTY_MODEL_PATH
     from .pose_model import MODEL_PATH as POSE_MODEL_PATH
-    return {"model": provider.OPENAI_MODEL, "reasoning_effort": provider.OPENAI_REASONING_EFFORT,
-            "provider": "Codex CLI · 本机登录", "provider_available": provider.available(),
+    return {"model": provider.engine.MODEL_NAME, "reasoning_effort": None,
+            "provider": provider.engine.ENGINE_ID, "algorithm_version": provider.engine.ALGORITHM_VERSION, "provider_available": provider.available(),
             "max_upload_mb": MAX_UPLOAD_BYTES // 1_048_576, "max_pixels": MAX_PIXELS,
             "usage": pipeline.usage_summary(), "rubric_version": RUBRIC_VERSION,
             "face_rubric_version": FACE_RUBRIC_VERSION,
@@ -282,7 +282,7 @@ def analyze(asset_id: str, data: Analyze):
     if asset["external_scope"] == "face_only" and any(m != "face" for m in data.modules):
         raise HTTPException(400, "当前只授权裁脸，请授权整图后再分析摄影或体态")
     if not provider.available():
-        raise HTTPException(503, "Codex CLI不可用")
+        raise HTTPException(503, "本地评分引擎配置不可用")
     try:
         return {"job_id": pipeline.submit(asset, list(dict.fromkeys(data.modules)), body_scoring=data.body_scoring, force=data.force)}
     except ValueError as exc:
@@ -291,7 +291,7 @@ def analyze(asset_id: str, data: Analyze):
 
 @app.get("/api/jobs")
 def jobs():
-    return s.many("SELECT id,asset_id,status,created_at,updated_at,error FROM jobs ORDER BY created_at DESC LIMIT 100")
+    return s.many("SELECT id,asset_id,status,created_at,updated_at,error,result_json FROM jobs ORDER BY created_at DESC LIMIT 100")
 
 
 @app.post("/api/jobs/{job_id}/cancel")
@@ -349,7 +349,7 @@ def export_html(asset_id: str, report_id: str | None = None):
             title = '形体评分（旧版）'
         names = {r[0]: r[1] for r in RULES[module]}
         details = "".join(f"<li>{html.escape(names.get(d['key'], d['key']))}：{d['score'] if d['score'] is not None else '—'} / 10</li>" for d in result["dimensions"])
-        benchmark_note = ""
+        benchmark_note = "<p>分析失败：" + html.escape(result.get("summary", "请重试")) + "</p>" if result.get("status") == "failed" else ""
         if module == "face" and result.get("visual_benchmark"):
             vb = result["visual_benchmark"]
             cl_txt = " · 瞳孔眼神光" if vb.get("has_catchlight") else ""

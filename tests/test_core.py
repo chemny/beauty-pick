@@ -265,18 +265,13 @@ def test_crop_changes_invalidate_face_result(client):
     assert not storage.crop_path(aid).exists()
 
 
-def test_provider_cancel_terminates_process(tmp_path,monkeypatch):
-    import subprocess,sys,time
-    p=tmp_path/'input.jpg';Image.new('RGB',(40,40)).save(p)
-    real=subprocess.Popen;processes=[]
-    def spawn(command,**kwargs):
-        child=real([sys.executable,'-c','import time;time.sleep(60)'],**kwargs);processes.append(child);return child
-    monkeypatch.setattr(provider.subprocess,'Popen',spawn)
-    started=time.monotonic()
-    with pytest.raises(provider.ProviderError,match='取消'):
-        provider.evaluate('face',p,lambda:True)
-    assert time.monotonic()-started<10
-    assert all(child.poll() is not None for child in processes)
+def test_provider_cancel_does_not_run_inference(tmp_path, monkeypatch):
+    p = tmp_path / 'input.jpg'
+    def unexpected(*args, **kwargs):
+        pytest.fail('Cancelled request must not run local inference')
+    monkeypatch.setattr(provider, 'fast_objective_evaluate', unexpected)
+    with pytest.raises(provider.ProviderError, match='取消'):
+        provider.evaluate('face', p, lambda: True)
 
 
 def test_model_gate_and_explicit_suggestions(client,monkeypatch):
@@ -285,7 +280,7 @@ def test_model_gate_and_explicit_suggestions(client,monkeypatch):
     def evaluate(module,path,cancelled,**kwargs):
         raw=model_output();raw['scene']='full_body'
         raw['dimensions']=[dict(key=k,status='assessable',score=8,evidence='测试可见依据',limitations=[]) for k,*_ in RULES['body']]
-        return raw,{'input_tokens':1,'output_tokens':1}
+        return raw,{'engine':provider.engine_identity(module),'input_tokens':1,'output_tokens':1}
     monkeypatch.setattr(provider,'evaluate',evaluate)
     jid=storage.new_id()
     storage.run('INSERT INTO jobs(id,asset_id,status,modules_json,created_at,updated_at) VALUES(?,?,?,?,?,?)',(jid,aid,'queued',json.dumps({'modules':['body'],'body_scoring':False}),storage.now(),storage.now()))
@@ -325,7 +320,7 @@ def test_failed_and_cached_pipeline_does_not_invent_results(client,monkeypatch):
     def evaluate(module,path,cancelled):
         calls.append(module)
         raw=model_output();raw['dimensions']=[dict(key=k,status='assessable',score=7,evidence='可见依据',limitations=[]) for k,*_ in RULES[module]]
-        return raw,{'input_tokens':1,'output_tokens':1}
+        return raw,{'engine':provider.engine_identity(module),'input_tokens':1,'output_tokens':1}
     monkeypatch.setattr(provider,'evaluate',evaluate)
     def run():
         jid=storage.new_id();storage.run('INSERT INTO jobs(id,asset_id,status,modules_json,created_at,updated_at) VALUES(?,?,?,?,?,?)',(jid,aid,'queued','["photography"]',storage.now(),storage.now()));pipeline.run_job(jid)
@@ -499,6 +494,8 @@ def test_body_ranking_handles_missing_dimensions(client):
 
 
 def test_upload_consent_and_three_module_analysis(client, monkeypatch):
+    from app import standard_face
+    monkeypatch.setattr(standard_face, 'prepare', lambda im, target: (im.resize((224,224)), {'margin': .12}))
     from types import SimpleNamespace
     a=upload(client,adult=True);aid=a['id']
     client.post(f'/api/assets/{aid}/target',json={'x':.1,'y':.1,'width':.8,'height':.8})
@@ -511,7 +508,8 @@ def test_upload_consent_and_three_module_analysis(client, monkeypatch):
         calls.append(module);raw=model_output()
         raw['dimensions']=[dict(key=k,status='assessable',score=7,evidence='测试可见范围',limitations=[]) for k,*_ in RULES[module]]
         if module=='body':raw['scene']='full_body'
-        return raw,{'input_tokens':1,'output_tokens':1}
+        if module=='face':raw={'status':'completed','raw_score':3.764,'total':71.0}
+        return raw,{'engine':provider.engine_identity(module),'input_tokens':1,'output_tokens':1}
     monkeypatch.setattr(provider,'evaluate',evaluate)
     monkeypatch.setattr(provider,'available',lambda:True)
     monkeypatch.setattr(pipeline,'EXECUTOR',SimpleNamespace(submit=lambda fn,*args:fn(*args)))
@@ -519,11 +517,13 @@ def test_upload_consent_and_three_module_analysis(client, monkeypatch):
     assert r.status_code==200
     assert set(calls)=={'face','photography','body'}
     report=json.loads(storage.get_asset(aid)['report_json'])
-    assert all(report[m]['total']==70 for m in calls)
+    assert all(report[m]['total']==(71 if m=='face' else 70) for m in calls)
     assert storage.one('SELECT status FROM jobs WHERE id=?',(r.json()['job_id'],))['status']=='completed'
 
 
 def test_scoring_runs_two_modules_at_once(client, monkeypatch):
+    from app import standard_face
+    monkeypatch.setattr(standard_face, 'prepare', lambda im, target: (im.resize((224,224)), {'margin': .12}))
     from threading import Event, Lock, Thread
 
     a = upload(client, adult=True)
@@ -550,7 +550,9 @@ def test_scoring_runs_two_modules_at_once(client, monkeypatch):
                              for k, *_ in RULES[module]]
         if module == 'body':
             raw['scene'] = 'full_body'
-        return raw, {'input_tokens': 1, 'output_tokens': 1}
+        if module == 'face':
+            raw = {'status':'completed','raw_score':3.764,'total':71.0}
+        return raw, {'engine':provider.engine_identity(module), 'input_tokens': 1, 'output_tokens': 1}
 
     monkeypatch.setattr(provider, 'evaluate', evaluate)
     jid = storage.new_id()

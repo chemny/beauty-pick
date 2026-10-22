@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import io
 import json
 import os
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from . import provider, storage as s
+from . import engine, provider, storage as s
 from .images import oriented_rgb, detect_faces, quality_metrics, crop_face, save_crop, face_assessability
 from .provenance import provenance_report
 from .scoring import finalize, skipped, prompt_version, rubric_version
@@ -118,105 +120,64 @@ def submit(asset: dict, modules: list[str], body_scoring: bool = True, force: bo
     return job_id
 
 
+def evaluation_context(asset: dict, module: str, body_scoring: bool) -> tuple[dict, bytes]:
+    original_hash = engine.file_fingerprint(s.asset_path(asset["id"]))
+    if original_hash != asset["sha256"]:
+        raise provider.ProviderError("原图已变化或缺失，请重新上传")
+    identity = provider.engine_identity(module)
+    standard = module == "face" and identity.get("face_scoring_method") == "standard-face-v1"
+    if standard:
+        from .standard_face import prepare
+        image, transform = prepare(oriented_rgb(s.asset_path(asset["id"])), json.loads(asset["target_json"] or "null"))
+    else:
+        source = s.crop_path(asset["id"]) if module == "face" else s.asset_path(asset["id"])
+        image = oriented_rgb(source)
+        image.thumbnail((1800, 1800))
+    output = io.BytesIO()
+    if standard:
+        image.save(output, "PNG")
+    else:
+        image.save(output, "JPEG", quality=90, optimize=True)
+    data = output.getvalue()
+    context = {"cache_schema": 2, "original_sha256": original_hash,
+               "input_sha256": hashlib.sha256(data).hexdigest(),
+               "target": json.loads(asset["target_json"] or "null"), "module": module,
+               "body_scoring": body_scoring if module == "body" else None,
+               "engine": identity,
+               "prompt_version": prompt_version(module), "rubric_version": rubric_version(module)}
+    if standard:
+        context.update(input_format="PNG", standard_face_transform=transform)
+    return context, data
+
+
 def evaluate_module(asset: dict, module: str, body_scoring: bool, cache_key: str,
-                    cancelled) -> tuple[dict | None, dict | None]:
+                    cancelled, context: dict, input_bytes: bytes) -> tuple[dict | None, dict | None]:
     if cancelled():
         return None, None
     call_id = None
+    started = time.monotonic()
     try:
         call_id = reserve_call(module)
+        if provider.engine_identity(module) != context["engine"]:
+            raise provider.ProviderError("排队期间模型或算法已变化，请重新分析")
         with tempfile.TemporaryDirectory(prefix="portrait-input-") as directory:
-            path = Path(directory) / "image.jpg"
-            if module == "face":
-                image = oriented_rgb(s.crop_path(asset["id"]))
-            else:
-                image = oriented_rgb(s.asset_path(asset["id"]))
-            image.thumbnail((1800, 1800))
-            save_crop(image, path)
+            path = Path(directory) / ("image.png" if context.get("input_format") == "PNG" else "image.jpg")
+            path.write_bytes(input_bytes)
             raw, usage = provider.evaluate(module, path, cancelled, body_scoring=body_scoring) if module == "body" else provider.evaluate(module, path, cancelled)
-        assessed = finalize(module, raw)
-        if module == "face":
-            try:
-                from .beauty_model import evaluate_face_beauty, evaluate_face_geometry
-                crop_img = oriented_rgb(s.crop_path(asset["id"]))
-                b_eval = evaluate_face_beauty(crop_img)
-                geom = evaluate_face_geometry(crop_img)
-                if b_eval.get("available"):
-                    assessed["visual_benchmark"] = {
-                        **b_eval,
-                        "three_parts_ratio": geom.get("three_parts_ratio"),
-                        "eye_spacing_ratio": geom.get("eye_spacing_ratio"),
-                        "face_shape_label": geom.get("face_shape_label"),
-                        "nose_ratio_label": geom.get("nose_ratio_label"),
-                        "nose_interocular_ratio": geom.get("nose_interocular_ratio"),
-                        "face_lw_ratio": geom.get("face_lw_ratio"),
-                        "has_catchlight": geom.get("has_catchlight"),
-                        "is_over_smoothed": geom.get("is_over_smoothed"),
-                        "skin_texture_label": geom.get("skin_texture_label"),
-                    }
-            except Exception:
-                pass
-        if module == "body":
-            try:
-                from .pose_model import evaluate_body_pose
-                body_img = oriented_rgb(s.asset_path(asset["id"]))
-                pose_eval = evaluate_body_pose(body_img)
-                if pose_eval.get("detected"):
-                    assessed["pose_metrics"] = {
-                        "scene": pose_eval["scene"],
-                        "scene_display": pose_eval["scene_display"],
-                        "head_ratio": pose_eval.get("head_ratio"),
-                        "shoulder_hip_ratio": pose_eval.get("shoulder_hip_ratio"),
-                        "torso_leg_ratio": pose_eval.get("torso_leg_ratio"),
-                        "shoulder_tilt_deg": pose_eval.get("shoulder_tilt_deg"),
-                        "shoulder_balance": pose_eval.get("shoulder_balance"),
-                    }
-                    # Enforce strict not_assessable on physically missing/truncated body parts
-                    missing_keys = [k for k, v in pose_eval.get("parts_visibility", {}).items() if not v and k in ("chest", "waist", "hips", "legs")]
-                    if missing_keys and body_scoring:
-                        changed = False
-                        for dim in assessed.get("dimensions", []):
-                            if dim["key"] in missing_keys and dim["score"] is not None:
-                                dim["score"] = None
-                                dim["status"] = "insufficient"
-                                dim["limitations"].append("骨骼实测表明该部位未入镜或被严重截断")
-                                changed = True
-                        if changed:
-                            from .scoring import body_total_score
-                            scores = {d["key"]: d["score"] for d in assessed["dimensions"]}
-                            w = assessed["weights"]
-                            assessed["total"] = body_total_score(scores, w)
-                            assessed_keys = [k for k, v in scores.items() if v is not None]
-                            w_sum = sum(w[k] for k in assessed_keys)
-                            assessed.update(
-                                assessed_count=len(assessed_keys),
-                                assessed_dimensions=assessed_keys,
-                                excluded_dimensions=[k for k, v in scores.items() if v is None],
-                                effective_weights={k: round(w[k] * 100 / w_sum, 4) for k in assessed_keys} if w_sum else {},
-                                scoring_scope="full" if len(assessed_keys) == len(scores) else "visible_only",
-                            )
-            except Exception:
-                pass
-        if module == "photography":
-            try:
-                from .photo_model import evaluate_photo_metrics
-                photo_img = oriented_rgb(s.asset_path(asset["id"]))
-                target = json.loads(asset["target_json"]) if asset.get("target_json") else None
-                p_eval = evaluate_photo_metrics(photo_img, target)
-                if p_eval.get("available"):
-                    assessed["photo_metrics"] = {
-                        "benchmark_score": p_eval["benchmark_score"],
-                        "exposure_label": p_eval["exposure"]["label"],
-                        "face_exposure_label": p_eval["exposure"].get("face_exposure_label"),
-                        "light_softness": p_eval["exposure"].get("light_softness"),
-                        "clarity_label": p_eval["clarity"]["label"],
-                        "composition_note": p_eval["composition"]["note"],
-                        "headroom_label": p_eval["composition"].get("headroom_label"),
-                        "dof_label": p_eval["composition"]["dof_label"],
-                        "catchlight_label": p_eval["composition"].get("catchlight_label"),
-                    }
-            except Exception:
-                pass
+        if cancelled():
+            raise provider.ProviderError("用户取消分析")
+        if usage.get("engine") != context["engine"] or provider.engine_identity(module) != context["engine"]:
+            raise provider.ProviderError("本次执行的引擎版本与请求不一致，请重新分析")
+        raw = dict(raw)
+        measurements = raw.pop("_measurements", {})
+        if module == "face" and context["engine"].get("face_scoring_method") == "standard-face-v1":
+            from .standard_face import assessment
+            assessed = assessment(raw)
+        else:
+            assessed = finalize(module, raw)
+        for key in ("visual_benchmark", "pose_metrics", "photo_metrics"):
+            if key in measurements:
+                assessed[key] = measurements[key]
         if module == "body" and not body_scoring:
             assessed["total"] = None
             assessed["status"] = "suggestions_only"
@@ -224,16 +185,23 @@ def evaluate_module(asset: dict, module: str, body_scoring: bool, cache_key: str
             for dim in assessed["dimensions"]:
                 dim["score"] = None
                 dim["status"] = "not_assessable"
-        assessed["cache_key"] = cache_key
-        assessed["model"] = provider.OPENAI_MODEL
-        assessed["reasoning_effort"] = provider.OPENAI_REASONING_EFFORT
+        assessed.update(cache_key=cache_key, cache_reused=False, evaluation_context=context,
+                        engine=context["engine"], provider=context["engine"]["provider"],
+                        model=context["engine"]["model"], reasoning_effort=context["engine"]["reasoning_effort"],
+                        evaluated_at=s.now(), input_sha256=context["input_sha256"])
+        usage = {**usage, "elapsed_seconds": round(time.monotonic() - started, 3)}
+        assessed["elapsed_seconds"] = usage["elapsed_seconds"]
         s.run("UPDATE model_calls SET status='completed',usage_json=? WHERE id=?", (json.dumps(usage), call_id))
         return assessed, usage
     except Exception as exc:
         reason = str(exc)[:300] if isinstance(exc, (provider.ProviderError, ValueError)) else "处理失败（" + type(exc).__name__ + "）"
+        usage = {"engine": context["engine"], "elapsed_seconds": round(time.monotonic() - started, 3), "error": reason}
         if call_id:
-            s.run("UPDATE model_calls SET status='failed' WHERE id=?", (call_id,))
-        return skipped(module, reason, "failed"), None
+            s.run("UPDATE model_calls SET status=?,usage_json=? WHERE id=?",
+                  ("cancelled" if cancelled() else "failed", json.dumps(usage), call_id))
+        result = skipped(module, reason, "failed")
+        result.update(attempted_engine=context["engine"], input_sha256=context["input_sha256"])
+        return result, usage
 
 
 def run_job(job_id: str) -> None:
@@ -248,7 +216,13 @@ def run_job(job_id: str) -> None:
     modules = options if isinstance(options, list) else options["modules"]
     body_scoring = True if isinstance(options, list) else options.get("body_scoring", True)
     force = False if isinstance(options, list) else options.get("force", False)
-    report = json.loads(asset["report_json"])
+    previous_report = json.loads(asset["report_json"])
+    report = copy.deepcopy(previous_report)
+    report["requested_modules"] = modules
+    report["job_id"] = job_id
+    report["base_report_id"] = previous_report["id"]
+    for module in modules:
+        report[module] = skipped(module, "本次分析尚未完成")
     report["id"], report["created_at"] = s.new_id(), s.now()
     report["usage"] = []
 
@@ -277,14 +251,22 @@ def run_job(job_id: str) -> None:
                 if not report["face_gate"]["assessable"]:
                     report[module] = skipped(module, "；".join(report["face_gate"]["limitations"]), "not_assessable")
                     continue
-            cache_input = f"{asset['sha256']}:{asset['target_json'] if module == 'face' else ''}:{module}:{prompt_version(module)}:{rubric_version(module)}:{provider.OPENAI_MODEL}:{provider.OPENAI_REASONING_EFFORT}"
-            if module == "body":
-                cache_input += f":scoring={body_scoring}"
-            cache_key = hashlib.sha256(cache_input.encode()).hexdigest()
-            if not force and report.get(module, {}).get("cache_key") == cache_key:
-                report[module]["cache_reused"] = True
+            try:
+                context, input_bytes = evaluation_context(asset, module, body_scoring)
+                cache_key = engine.signature(context)
+            except Exception as exc:
+                reason = str(exc)[:300] if isinstance(exc, (provider.ProviderError, RuntimeError)) else "准备分析失败（" + type(exc).__name__ + "）"
+                report[module] = skipped(module, reason, "failed")
                 continue
-            pending[MODEL_EXECUTOR.submit(evaluate_module, asset, module, body_scoring, cache_key, cancelled)] = module
+            cached = previous_report.get(module, {})
+            if (not force and cached.get("cache_key") == cache_key
+                    and cached.get("status") in ("completed", "suggestions_only")
+                    and cached.get("engine") == context["engine"]):
+                report[module] = copy.deepcopy(cached)
+                report[module].update(cache_reused=True, source_report_id=previous_report["id"])
+                continue
+            pending[MODEL_EXECUTOR.submit(evaluate_module, asset, module, body_scoring, cache_key,
+                                          cancelled, context, input_bytes)] = module
         for future in as_completed(pending):
             module = pending[future]
             report[module], usage = future.result()
@@ -295,13 +277,25 @@ def run_job(job_id: str) -> None:
             return
         states = [report[m]["status"] for m in modules]
         status = "failed" if all(state == "failed" for state in states) else "completed" if all(state in ("completed", "suggestions_only") for state in states) else "partial"
+        report["attempt_status"] = status
+        report["carried_modules"] = [m for m in ("face", "body", "photography") if m not in modules]
+        failures = [report[m]["summary"] for m in modules if report[m]["status"] == "failed"]
         payload = json.dumps(report, ensure_ascii=False)
         with s.LOCK, s.db() as con:
             if cancelled():
                 return
+            # Preserve the previous snapshot, including legacy reports that were only on the asset.
+            if any(previous_report.get(m, {}).get("total") is not None for m in ("face", "body", "photography")):
+                con.execute("INSERT OR IGNORE INTO assessments VALUES(?,?,?,?)",
+                            (previous_report["id"], asset["id"], previous_report["created_at"], json.dumps(previous_report, ensure_ascii=False)))
             con.execute("INSERT INTO assessments VALUES(?,?,?,?)", (report["id"], asset["id"], report["created_at"], payload))
-            con.execute("UPDATE assets SET report_json=?,status=? WHERE id=? AND deleted_at IS NULL", (payload, status, asset["id"]))
-            con.execute("UPDATE jobs SET status=?,updated_at=?,result_json=? WHERE id=?", (status, s.now(), json.dumps({"report_id": report["id"]}), job_id))
+            if status == "failed":
+                con.execute("UPDATE assets SET status=? WHERE id=? AND deleted_at IS NULL", (status, asset["id"]))
+            else:
+                con.execute("UPDATE assets SET report_json=?,status=? WHERE id=? AND deleted_at IS NULL", (payload, status, asset["id"]))
+            con.execute("UPDATE jobs SET status=?,updated_at=?,result_json=?,error=? WHERE id=?",
+                        (status, s.now(), json.dumps({"report_id": report["id"], "previous_report_id": previous_report["id"]}),
+                         "；".join(failures) or None, job_id))
     except Exception as exc:
         s.run("UPDATE jobs SET status='failed',updated_at=?,error=? WHERE id=? AND cancelled=0",
               (s.now(), "处理失败，请稍后重试（" + type(exc).__name__ + "）", job_id))

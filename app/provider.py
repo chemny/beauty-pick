@@ -1,38 +1,40 @@
 from __future__ import annotations
 
-import base64
-import io
-import json
 import os
-import shutil
-import subprocess
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Callable
 
 from PIL import Image
-from .config import OPENAI_MODEL, OPENAI_REASONING_EFFORT
-from .scoring import RULES
+from . import engine
 
 
 class ProviderError(RuntimeError):
     pass
 
 
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen3.5:9b-mlx")
 PREFERRED_PROVIDER = os.environ.get("PORTRAIT_PROVIDER", "fast_objective")
 
 
 def available() -> bool:
-    return True
+    return PREFERRED_PROVIDER == "fast_objective"
+
+
+def engine_identity(module: str) -> dict:
+    if not available():
+        raise ProviderError("当前仅实现 fast_objective 本地评分引擎，请检查 PORTRAIT_PROVIDER 配置")
+    return engine.identity(module)
+
+
+def require_measurement(result: dict, label: str, flag: str = "available") -> None:
+    if result.get("error") or not result.get(flag):
+        raise ProviderError(f"{label}失败：{result.get('error') or result.get('reason') or '没有可用测量'}")
 
 
 def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = True) -> tuple[dict, dict]:
     """使用本地高精度客观物理/几何/视觉模型进行科学细化打分，彻底杜绝固定均一分。"""
     started = time.monotonic()
+    measurements = {}
 
     if module == "face":
         from .beauty_model import evaluate_face_beauty, evaluate_face_geometry
@@ -43,12 +45,17 @@ def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = 
             profile = face_color_profile(im)
             geom = evaluate_face_geometry(im)
 
-        benchmark = b_eval.get("benchmark_score", 75.0)
+        require_measurement(b_eval, "颜值模型")
+        require_measurement(geom, "面部关键点检测")
+        if not profile:
+            raise ProviderError("面部肤色测量失败，未生成颜值评分")
+        measurements["visual_benchmark"] = {**b_eval, **geom}
+        benchmark = b_eval["benchmark_score"]
         base = benchmark / 10.0  # 转为十分制浮点数
 
         # 真实测量肤色与肌理
-        l_star = profile.get("median_lightness_L_star", 60.0) if profile else 60.0
-        b_star = profile.get("median_yellow_blue_b_star", 18.0) if profile else 18.0
+        l_star = profile["median_lightness_L_star"]
+        b_star = profile["median_yellow_blue_b_star"]
 
         is_smoothed = geom.get("is_over_smoothed", False)
         texture_label = geom.get("skin_texture_label", "自然肌理")
@@ -129,6 +136,9 @@ def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = 
         with Image.open(image_path) as im:
             pose_eval = evaluate_body_pose(im)
 
+        if pose_eval.get("error"):
+            raise ProviderError(f"身材测量失败：{pose_eval['error']}")
+        measurements["pose_metrics"] = pose_eval
         detected = pose_eval.get("detected", False)
         scene = pose_eval.get("scene", "half_body")
         parts = pose_eval.get("parts_visibility", {})
@@ -243,7 +253,16 @@ def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = 
         with Image.open(image_path) as im:
             p_eval = evaluate_photo_metrics(im)
 
-        exp = p_eval.get("exposure", {})
+        require_measurement(p_eval, "摄影测量")
+        measurements["photo_metrics"] = {
+            "benchmark_score": p_eval["benchmark_score"],
+            "exposure_label": p_eval["exposure"]["label"],
+            "clarity_label": p_eval["clarity"]["label"],
+            "composition_note": p_eval["composition"]["note"],
+            **{k: p_eval["exposure"].get(k) for k in ("face_exposure_label", "light_softness")},
+            **{k: p_eval["composition"].get(k) for k in ("headroom_label", "dof_label", "catchlight_label")},
+        }
+        exp = p_eval["exposure"]
         cla = p_eval.get("clarity", {})
         comp = p_eval.get("composition", {})
         col = p_eval.get("color", {})
@@ -348,13 +367,20 @@ def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = 
     else:
         raise ValueError(f"未知评估模块: {module}")
 
+    if module == "body" and body_scoring:
+        visibility = measurements["pose_metrics"].get("parts_visibility", {})
+        for dim in raw["dimensions"]:
+            if dim["key"] in ("chest", "waist", "hips", "legs") and dim["key"] in visibility and not visibility[dim["key"]]:
+                dim.update(score=None, status="insufficient")
+                dim["limitations"].append("该部位缺少可见测量依据")
+    raw["_measurements"] = measurements
     usage = {
         "provider": "fast_objective_engine",
         "model": "native_apple_mps_resnet50_mediapipe_cv",
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "total_tokens": 0,
         "cost": 0.0,
-        "cost_note": "纯本地高精度客观物理度量引擎 (硬件加速)"
+        "cost_note": "本地评分引擎，无外部模型调用费用"
     }
     return raw, usage
 
@@ -362,4 +388,17 @@ def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = 
 def evaluate(module: str, image_path: Path, cancelled: Callable[[], bool], body_scoring: bool = True) -> tuple[dict, dict]:
     if cancelled and cancelled():
         raise ProviderError("用户取消分析")
-    return fast_objective_evaluate(module, image_path, body_scoring=body_scoring)
+    identity = engine_identity(module)
+    if module == "face" and identity.get("face_scoring_method") == "standard-face-v1":
+        from .standard_face import infer
+        with Image.open(image_path) as image:
+            result = infer(image.convert("RGB"))
+        usage = {"provider": identity["provider"], "model": identity["model"], "total_tokens": 0, "cost": 0.0}
+    else:
+        result, usage = fast_objective_evaluate(module, image_path, body_scoring=body_scoring)
+    if cancelled and cancelled():
+        raise ProviderError("用户取消分析")
+    if engine_identity(module) != identity:
+        raise ProviderError("分析期间模型或算法已变化，请重新分析")
+    usage["engine"] = identity
+    return result, usage
