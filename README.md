@@ -1,12 +1,15 @@
 # BeautyPick
 
+> Local FPEM facial scoring, TOPIQ-IAA photography scoring, and parameter-assisted Qwen body scoring. See the [installation guide](docs/runtime-install.md).
+
+
 English | [中文](./README.zh.md)
 
 ## Overview
 
-BeautyPick is a local portrait assessment and photo-selection application with an Agent Skill entry point. It provides model-based facial scores and measurement-based body and photography assessments. Scores reflect model preferences and heuristics, not objective beauty or validated anatomical judgments. Normal scoring runs locally without a Codex account.
+BeautyPick is a local portrait assessment and photo-selection application with an Agent Skill entry point. It provides model-based facial scores and local body assessments and TOPIQ-IAA photography scores. Scores reflect model preferences and heuristics, not objective beauty or validated anatomical judgments. Normal scoring runs locally without a Codex account.
 
-Current release: **0.2.0**. See [release notes](./CHANGELOG.md).
+Release version: **0.3.0**. See [release notes](./CHANGELOG.md).
 
 ## Preview
 
@@ -16,31 +19,34 @@ Current release: **0.2.0**. See [release notes](./CHANGELOG.md).
 
 | Capability | What it helps you do |
 |---|---|
-| Facial Aesthetics Assessment | Uses a fixed standard face crop and ResNet50 to predict an overall score; does not invent independent facial-part scores. |
-| Body Line & Pose Evaluation | Evaluates shoulder, waist, hip, and leg proportions while decoupling posing tilt from physique ratings and dynamically normalizing visible parts. |
-| Photographic Quality Scoring | Delivers continuous 0.1-decimal scores based on Tenengrad edge gradients, facial exposure, and depth-of-field separation to clearly differentiate photos. |
-| Provenance & Authenticity | Inspects C2PA digital credentials and EXIF metadata to distinguish camera shots, AI generations, and edits. |
+| Facial Aesthetics Assessment | Uses a fixed standard face crop and local FPEM to predict an overall score; does not invent independent facial-part scores. |
+| Visible Body Assessment | Local Qwen uses MediaPipe/FASHN candidate parameters for chest, waist, hips and legs; fixed weights with zero contribution for missing observations. |
+| Photographic Aesthetics | Local TOPIQ-IAA predicts an overall score without fabricated independent facet scores. |
+| Provenance Evidence | Inspects C2PA, EXIF and file markings; missing evidence does not establish origin. |
 | Photo Curation & Ranking | Compares and ranks multiple portrait candidates across individual metric dimensions without duplicate model calls. |
 
 ## Installation
 
 ### Requirements
 
-Before using BeautyPick, ensure your environment meets the following baseline requirements:
+Prepare the backend and local runtime below before requesting installation.
 
 | Item | Requirement |
 |---|---|
-| Agent Client | Google Antigravity, OpenAI Codex, or Claude Code |
-| Python Runtime | Python 3.10 or higher |
-| Operating System | macOS (Apple Silicon MPS recommended), Linux, or Windows |
+| Full backend | Apple Silicon Mac, Python 3.13 and Ollama with support for the specified MLX model |
+| Windows client | OpenSSH tunnel to your own Mac backend; the MLX body engine does not run natively on Windows |
+| Model assets | FPEM, TOPIQ-IAA, FASHN, MediaPipe and the exact Qwen version; about 4.3 GB plus dependencies |
+| Agent | Local CLI/API access; no Codex account required; an explicit skill installation directory |
 
 ### Quick Installation
 
-Ask your Agent client to install BeautyPick:
+Ask your Agent to install the application and register only the intended Skill directory:
 
 ```text
-Please install the BeautyPick skill from https://github.com/chemny/beauty-pick
+Please install BeautyPick from https://github.com/chemny/beauty-pick, check the runtime requirements, and register the skill only in the Agent directory I specify.
 ```
+
+An existing skill directory is never overwritten. See the [installation and Windows connection guide](docs/runtime-install.md). The installer does not synchronize other Agents or silently change model versions.
 
 ## Quick Start
 
@@ -76,8 +82,8 @@ Analyze the pose and lighting of this photo with beauty-pick and provide shootin
 
 BeautyPick uses local scoring with a separate Agent interface:
 
-1. **Local Scoring**: Face evaluation uses landmark-based square crops with a 12% margin, no rotation and 224×224 input. Existing ResNet50 weights produce one overall score using the legacy display scale. Body and photography use local measurements. Model scores are subjective references; 99-point saturation is a known limitation.
-2. **Body Pose & Physique Decoupling Engine**: Identifies BlazePose 33 skeletal landmarks. Posing actions (e.g. raised shoulders or body tilt) are isolated as creative styling and excluded from body scoring.
+1. **Local Scoring**: FPEM predicts overall facial attractiveness; TOPIQ-IAA predicts photographic aesthetics. Scores reflect model and project preferences, not objective beauty.
+2. **Body Parameters and Scores**: MediaPipe and FASHN extract landmarks, masks and candidate contours for local Qwen. Chest/waist/hips/legs use fixed weights of 25/30/25/20%; missing observations remain null and contribute zero to the total.
 3. **Application & Task Queue Layer**: FastAPI server orchestrating background evaluation queues, caching, and SQLite metadata storage (`data/portrait.db`).
 4. **Agent Skill Contract Layer**: A standard `SKILL.md` entry point defining CLI invocations and Pydantic schema validation.
 
@@ -89,16 +95,16 @@ beautypick/
 ├── references/               # Architectural reference and REST API contracts
 ├── app/                      # FastAPI backend service, scoring algorithms, and CLI
 │   ├── scoring.py            # Dimension weights, scoring schemas, and rubrics
-│   ├── provider.py           # Objective engine orchestration and scoring formulas
-│   ├── beauty_model.py       # ResNet50 facial baseline and geometry evaluation
-│   ├── photo_model.py        # Tenengrad sharpness, exposure, and composition metrics
+│   ├── provider.py           # Scoring orchestration
+│   ├── beauty_model.py       # Legacy ResNet50 rollback adapter
+│   ├── photo_model.py        # Legacy CV photography adapter
 │   └── pose_model.py         # Skeletal landmark detection and pose decoupling
 ├── web/                      # React 19 + TypeScript + Vite frontend
 │   └── dist/                 # Prebuilt static web assets for zero-dependency launch
 ├── models/                   # Local vision models, landmark tasks, and C2PA trust anchors
 ├── scripts/                  # Model verification and helper tools
 ├── assets/                   # Public preview illustrations and screenshots
-├── setup.sh                  # One-click environment installation and skill registration
+├── setup.sh                  # Explicit local installation; single-target skill registration
 ├── start.sh                  # Application launch script
 └── requirements.txt          # Python dependency specifications
 ```
@@ -107,7 +113,7 @@ beautypick/
 
 This project is licensed under the [MIT License](LICENSE).
 
-Third-party models located in `models/` follow their respective Google MediaPipe and Content Authenticity Initiative licenses.
+Third-party sources and weights retain their own terms, including noncommercial restrictions for TOPIQ. See [third-party notices](THIRD_PARTY.md); the root MIT license does not override them.
 
 ## About Me
 

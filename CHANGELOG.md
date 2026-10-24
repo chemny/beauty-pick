@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 — 2026-10-24
+
+- Keep FPEM as the production face scorer; geometric-ratio experiments are not activated.
+- Document the current local TOPIQ-IAA and parameter-assisted Qwen body engines.
+- Add reusable measurement definitions, pose controls, reference-comparison limits and production-isolation rules to the Skill.
+- Add a production asset manifest with exact sizes, SHA-256 and pinned download sources; provide separate locked main/parser environments and a read-only runtime doctor.
+- Replace automatic multi-Agent synchronization with explicit single-target installation that refuses overwrites.
+- Document Apple Silicon backend requirements and Windows access through an SSH tunnel to the user’s own Mac.
+- Include current local body parameter integration, small-face and image-format handling, upload feedback, photo numbers and deletion controls.
+- Preserve image-specific experiments outside the Skill delivery. No geometric-ratio experiment replaces FPEM; no production rescore is performed by installation.
+- Keep third-party notices separate from the root MIT license, including TOPIQ noncommercial terms.
+
 ## 0.2.0 — 2026-10-22
 
 - Use the selected local standard-face method for new uploads and reanalysis: fixed landmark bounds, 12% margin, square 224-pixel input, no rotation, lossless scoring input.

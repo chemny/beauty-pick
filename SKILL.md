@@ -1,109 +1,74 @@
 ---
 name: beauty-pick
-description: 当用户需要使用“颜选 · BeautyPick”应用评估人像照片、分析颜值与身材比例、检查摄影技术质量及对比选片时使用此技能。支持来源凭据检查与多维排行。
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
+description: 当用户需要使用本机“颜选 · BeautyPick”应用检查人像来源证据、评估颜值身材摄影、选片及排查评分流程。通过应用CLI/API操作，保护原图、历史结果与未修改模块。
 ---
 
-# 颜选 · BeautyPick Skill
+# 颜选 · BeautyPick
 
-## 1. 核心定位与架构关系
+## 定位与事实来源
 
-- **应用项目路径**：`{{BEAUTYPICK_DIR}}`（由 `./setup.sh` 安装时自动填入本机真实绝对路径，或可通过环境变量 `$BEAUTYPICK_HOME` 覆盖）。
-- **系统层级**：本机 React 19 + FastAPI + SQLite 应用。Skill 是 Agent 的调用入口与排查指引。
-- **算法唯一事实来源**：正式颜值裁脸与总分实现在 `app/standard_face.py`、`app/face_preprocessing.py`；调度与其他评分位于 `app/provider.py`、`app/pipeline.py`、`app/scoring.py`。**Skill 中严禁维护独立或分叉的评分算法**。
-- **评估引擎**：正式本地评分与独立研发试验分开。
-  - **正式评分**：纯本地ResNet50、MediaPipe与图像测量，不依赖Codex账号或云端模型。颜值采用标准面部版；身材与摄影保留现有本地测量规则。
-  - **研发试验**：Codex参考与其他候选代码仅用于离线对照，不是默认评分引擎；不得擅自发送图片、启用试验或将其结果覆盖正式记录。
-- **数据保留**：所有图片及评分记录默认均为永久保存（`retained = 1`），无 24 小时自动过期机制。除非获得用户显式删除授权，严禁清理素材及历史台账。
+Skill是Agent调用应用的入口，不自行打分、不维护另一套评分算法。任何Agent均可通过本机CLI/API使用；不能因为开发助手是Codex，就把生产评分改成Codex。
 
----
+先从`BEAUTYPICK_HOME`、当前工作区或已确认的项目路径定位应用。安装记录可使用`{{BEAUTYPICK_DIR}}`占位符；未替换时它不是有效路径。路径变化先核实，不凭旧路径复制项目。
 
-## 2. 模块评分行为与原则
+模型、提示、权重、缺项处理及版本以`/api/status`、实际报告引擎身份和项目代码为准，不能从旧文档推断。主要入口为`app/engine.py`、`provider.py`、`pipeline.py`、`scoring.py`及各模型适配器。不要把通用视觉特征称为经验证的骨相、真实围度、皮肤健康或统一科学审美标准。
 
-1. **三模块并行分析**：
-   - 网页端上传及“重新分析”默认对**颜值、身材、摄影**全量分析；CLI 默认亦为全量三模块分析。
-   - 研发人员如需单独测试某一模块，可在 CLI 中明确指定 `--modules face` 等。
-2. **三模块评分规范与量化原则**：
-   - **颜值 (Face, 满分 100)**：
-     - 正式方式：从原图已选目标检测关键点，以固定12%边距生成正方形面部输入，保留宽高比例、不旋转，双线性缩放至224×224后由原ResNet50输出整体分。
-     - 不输出独立部位评分，不通过五项加权回算；不得编造额头、鼻子、皮肤或骨相的独立美感结论。
-     - 沿用旧固定百分制换算，保留一位小数、显示范围35–99。高分截顶不等于接近完美，现有模型审美准确性未通过广泛验证。
-     - 关键点缺失、像素不足或标准框越界时明确失败，不回退到另一种裁脸或补默认分。
-   - **身材 (Body, 满分 100)**：
-     - 细项：肩胸25、腰腹20、臀胯15、腿部15、比例15、协调10（规则版本 `body-appearance-3.0`）。
-     - **姿态与造型解耦原则**：模特因拍摄造型摆出的姿势（如高低肩、侧倾、扭胯等）已从身材形体中完全解耦，**严禁作为身材缺陷扣分**；骨骼姿态分析仅用于客观姿态数据记录（倾角、头身比）与生成实操拍摄建议。
-     - 动态重权：不可见部位为 `null`，系统自动按可见项动态重权归一，有可见项即可出总分。
-   - **摄影 (Photography, 满分 100)**：
-     - 细项：曝光与光线25、清晰度与技术质量20、构图与视角20、色彩与后期20、背景与视觉叙事15。
-     - **连续量化原则**：全面采用 **0.1 连续精细浮点分体系**（总分与细项均精确到 1 位小数），基于面部测光纯净度、Tenengrad 边缘梯度、黄金三分线偏差、主体与背景景深虚化分离比（`dof_separation`）拉开技术差距。
-   - **严禁臆造**：总分为 `null` 严禁补零、补分或替换为主观目测分。
-3. **任务失败与结果真实性**：
-   - 若任务队列超时（180秒）、失败（`failed`）或被取消（`cancelled`），如实向用户汇报错误状态。**严禁使用历史旧分或缓存假冒本次调用输出**。
-4. **来源证据 (Provenance)**：
-   - 客观展示 C2PA 凭据与 EXIF。无 EXIF 不代表 AI，文件平台标记与用户说明严格区分展示。
+## 安装与依赖
 
----
+完整后台需要Apple Silicon Mac、Python 3.13及指定Ollama MLX模型，具体见项目的 `docs/runtime-install.md`。先检查 `scripts/doctor.py`，缺少依赖时说明用途与安装操作，获得安装授权后才执行 `python3.13 setup.py --pull-body`，完成后复检。缺少或变更的权重不能静默替换。
 
-## 3. CLI 常用操作指引
+注册Skill必须显式指定一个新目录：`python3.13 setup.py --client-only --skill-dir <target>`，不覆盖已有目录，不同步其他Agent。Windows客户端使用OpenSSH连接用户自有Mac后台后的HTTP API；照片在该Mac处理，传图前需说明并获准，不在Windows执行下方POSIX虚拟环境命令。
 
-在项目主目录下通过虚拟环境运行 `python -m app.cli`（与 Web UI 共用同一底层 API）：
+## 执行边界
 
-### 3.1 服务检查与启动
+- 讨论、诊断和复盘先只读；用户明确实施后再修改。
+- 区分隔离试验、既有结果迁移、正式上传/重评接入。获准更新预览不等于获准写正式库；迁移既有分数不等于已切换运行时。
+- 用户冻结某模块时，完整保护其报告及算法。单模块排查使用明确的modules，不触发其他模块重算。
+- 不自动删除素材、覆盖历史、同步其他Agent的技能副本或推送远程。
+- 数据保留、授权和成年状态按实际应用及已获用户授权执行，不在界面擅自加回用户移除的交互。
+
+## 测量与评分的通用要求
+
+操作前阅读 [测量、评分和验证规则](references/measurement-and-validation.md)。核心约束：
+
+1. 分开保存候选提取、测量/估计、可见性判断、审美评分和文字解释。
+2. 尽可能保留候选参数及不确定性；不要仅因质量阈值不满足就提前丢弃整个部位。无信息时也不能伪造数据。
+3. 裁图必须包含对应参数点，坐标、图像方向及模型输入必须能追溯。
+4. 明确区分参数辅助、纯视觉和缺项默认贡献；出分率不等于测量覆盖率或准确率。
+5. 不复制本轮具体阈值、权重、样例排名到技能作为永久标准；读取当前应用规则。
+6. 模型失败必须是真失败；历史结果可受保护继续展示，但不能冒充本次成功输出。
+7. 定位/识别模型不自动具备审美能力；参数定义和姿态修正分开验证，参考排序一致性不当作准确率。未获准替换时保留正式引擎。
+
+## CLI使用
+
+在已核实项目根目录运行，先检查服务与当前命令合同：
+
 ```bash
-# 检查服务健康状态
+.venv/bin/python -m app.cli --help
 .venv/bin/python -m app.cli status
-
-# 若服务未运行（端口 8765 未监听），在项目根目录启动（仅绑定 127.0.0.1）
-./start.sh
-```
-
-### 3.2 素材列表与上传
-```bash
-# 列出所有已保存资产及其评分卡状态
 .venv/bin/python -m app.cli list
+```
 
-# 上传图片（需要显式确认版权与成年状态）
+服务未启动时按项目启动脚本或运行说明启动，仅绑定本机。上传及分析示例：
+
+```bash
 .venv/bin/python -m app.cli upload /path/to/image.jpg --rights-confirmed --adult-confirmed
-```
-
-### 3.3 触发评分与分析
-```bash
-# 全量三模块分析（默认包含颜值、身材、摄影）
 .venv/bin/python -m app.cli analyze <asset_id> --allow-cloud --adult-confirmed --wait
-
-# 研发单测：仅测试某一模块
-.venv/bin/python -m app.cli analyze <asset_id> --modules face --allow-cloud --adult-confirmed --wait
-
-# 强制重评（忽略缓存）
-.venv/bin/python -m app.cli analyze <asset_id> --allow-cloud --force --wait
-```
-
-### 3.4 导出、排行与删除
-```bash
-# 导出评分报告（支持 json 或 html）
+.venv/bin/python -m app.cli analyze <asset_id> --modules face --allow-cloud --adult-confirmed --force --wait
 .venv/bin/python -m app.cli export <asset_id> /path/to/report.json --format json
-.venv/bin/python -m app.cli export <asset_id> /path/to/report.html --format html
-
-# 查看项目内确定性排序（非模型成对复评，基于已有分项）
 .venv/bin/python -m app.cli ranking <project_id> --module face
-
-# 删除素材（须有用户显式授权，会彻底删除图片与报告）
-.venv/bin/python -m app.cli delete <asset_id> --confirm
 ```
 
----
+当前CLI保留`--allow-cloud`历史参数，不能据此声称本次分析发送到云端；实际处理位置必须核实运行引擎。若未来确需外发，仍需对应用户授权。删除仅限明确授权的对象，不把命令可用视为删除授权。
 
-## 4. 详细技术参考
+## 完成标准与汇报
 
-关于系统数据模型、FastAPI 端点契约、任务队列机制及备份方案，请查阅配套文档与模版：
-- [architecture-and-api.md](references/architecture-and-api.md)
-- [templates/report_export_template.json](templates/report_export_template.json)
+- 核对实际上传和强制重评，不只验证直接模型函数或保存试验结果。
+- 核对任务、数据库原始报告、API返回和页面展示是否一致；保存历史与缓存版本证据。
+- 批量变更前备份，写入前检查并发变化，事务更新，验证原图与冻结模块不变；用户新上传/新任务不可误删或覆盖。
+- 分别报告参数覆盖、实际出分、默认贡献、失败和质量待核对项；说明哪些已正式接入。
+- 当前图片、故障、数值和临时版本留在项目记录，不写进通用技能或长期记忆。
 
----
-
-## 5. 注意事项与合规说明
-
-1. **隐私安全**：所有评估均在本地离线或用户配置的受信端点执行，绝不向未授权第三方同步人像图片。
-2. **能力边界**：美学评分是模型偏好与测量规则的输出，仅用于辅助选片，不声称客观颜值、真实骨相或健康诊断。
-
+架构与接口见 [应用接口参考](references/architecture-and-api.md)。

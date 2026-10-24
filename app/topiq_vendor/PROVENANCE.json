@@ -1,0 +1,12 @@
+{
+  "upstream": "https://github.com/chaofengc/IQA-PyTorch",
+  "version": "0.1.16",
+  "source": "pyiqa/archs/topiq_arch.py",
+  "original_sha256": "d56b62c5d3fb3f7834015401fa68d5083ca600769f8a7da66c30e6c85e9e660b",
+  "changes": [
+    "Only offline ResNet50 AVA configuration accepted",
+    "Removed unused CLIP/Swin/face restoration/reference/multicrop/download branches and registry",
+    "Kept active forward computations and parameter names; strict checkpoint loading and numerical equivalence validated"
+  ],
+  "license": "PolyForm-Noncommercial-1.0.0"
+}

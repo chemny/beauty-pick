@@ -5,6 +5,7 @@ from pathlib import Path
 
 from PIL import ExifTags, Image
 from .config import ROOT
+from . import image_formats  # Register HEIF before reading original metadata.
 
 
 SAFE_EXIF = {"Make", "Model", "DateTime", "DateTimeOriginal", "Software", "Orientation", "LensModel", "FNumber", "ExposureTime", "ISOSpeedRatings", "PhotographicSensitivity", "FocalLength", "DateTimeDigitized"}

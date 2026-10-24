@@ -9,8 +9,11 @@ import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .config import MAX_PIXELS, ROOT
+from .image_formats import FORMAT_MIME
 
-FORMAT_MIME = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
+MIN_FACE_PIXELS = 40
+RECOMMENDED_FACE_PIXELS = 80
+
 
 
 class InvalidImage(ValueError):
@@ -21,15 +24,17 @@ def inspect_image(raw: bytes) -> dict:
     try:
         with Image.open(io.BytesIO(raw)) as image:
             if image.format not in FORMAT_MIME:
-                raise InvalidImage("仅支持 JPEG、PNG 和静态 WebP")
+                raise InvalidImage("不支持此图片格式，请上传 HEIC/HEIF、JPG、PNG、WebP、AVIF、BMP、TIFF、静态 GIF 或 JPEG 2000")
             if getattr(image, "n_frames", 1) != 1:
-                raise InvalidImage("不支持动画图片")
+                raise InvalidImage("暂不支持动画或多页图片，请导出单张静态图片")
             if image.width * image.height > MAX_PIXELS:
                 raise InvalidImage("图片像素数超过上限")
             image.load()
             return {"mime": FORMAT_MIME[image.format], "width": ImageOps.exif_transpose(image).width,
                     "height": ImageOps.exif_transpose(image).height, "sha256": hashlib.sha256(raw).hexdigest()}
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
+    except InvalidImage:
+        raise
+    except (UnidentifiedImageError, OSError, ValueError, RuntimeError, Image.DecompressionBombError) as exc:
         raise InvalidImage("图片无法安全解码") from exc
 
 
@@ -154,9 +159,15 @@ def face_assessability(box: dict, crop: Image.Image) -> dict:
     metrics = quality_metrics(crop)
     face_px = min(box["pixel_width"], box["pixel_height"])
     limitations = []
-    if crop.width < 160 or crop.height < 160 or face_px < 90:
-        limitations.append("可见面部像素不足，无法可靠评分")
+    warnings = []
+    # The intermediate crop includes a margin and is resized by standard_face.
+    # Its dimensions must not independently reject an otherwise sufficient face.
+    if face_px < MIN_FACE_PIXELS:
+        limitations.append("原图中人脸过小，无法提取足够面部特征")
+    elif face_px < RECOMMENDED_FACE_PIXELS:
+        warnings.append("原图面部分辨率偏低，继续使用原图关键点验证，不补造细节")
     if metrics["blur_variance"] < 25:
         limitations.append("标准裁脸较模糊，可能影响细节判断")
-    return {"assessable": not limitations, "limitations": limitations, "metrics": metrics,
+    return {"assessable": not limitations, "limitations": limitations, "warnings": warnings,
+            "source_face_pixels": face_px, "metrics": metrics,
             "note": "自动门槛仅作初筛；遮挡、角度和表情仍需在语义评估中逐项判断。"}

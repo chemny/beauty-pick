@@ -18,6 +18,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import pipeline, provider, storage as s
 from .config import MAX_UPLOAD_BYTES, MAX_PIXELS, ROOT
+from .image_formats import SUPPORTED_IMAGE_FORMATS
 from .images import inspect_image, InvalidImage, preview_bytes, oriented_rgb, crop_face
 from .scoring import RULES, ANCHORS, RUBRIC_VERSION, FACE_RUBRIC_VERSION, total_score
 
@@ -101,22 +102,27 @@ def session():
 
 @app.get("/api/status")
 def status():
+    from . import fpem_model, topiq_model, body_model
     from .beauty_model import MODEL_PATH as BEAUTY_MODEL_PATH
     from .pose_model import MODEL_PATH as POSE_MODEL_PATH
     return {"model": provider.engine.MODEL_NAME, "reasoning_effort": None,
             "provider": provider.engine.ENGINE_ID, "algorithm_version": provider.engine.ALGORITHM_VERSION, "provider_available": provider.available(),
             "max_upload_mb": MAX_UPLOAD_BYTES // 1_048_576, "max_pixels": MAX_PIXELS,
+            "supported_image_formats": SUPPORTED_IMAGE_FORMATS,
             "usage": pipeline.usage_summary(), "rubric_version": RUBRIC_VERSION,
-            "face_rubric_version": FACE_RUBRIC_VERSION,
-            "beauty_model_available": BEAUTY_MODEL_PATH.exists(),
-            "beauty_model_name": "SCUT-FBP5500-ResNet50",
+            "face_rubric_version": fpem_model.RUBRIC_VERSION if fpem_model.selected_engine() == "fpem" else FACE_RUBRIC_VERSION,
+            "beauty_model_available": (fpem_model.MODEL_PATH if fpem_model.selected_engine() == "fpem" else BEAUTY_MODEL_PATH).exists(),
+            "photography_model_name": "TOPIQ-IAA-ResNet50" if topiq_model.selected_engine() == "topiq" else "CV",
+            "photography_model_available": topiq_model.MODEL_PATH.exists() if topiq_model.selected_engine() == "topiq" else True,
+            "photography_rubric_version": topiq_model.RUBRIC_VERSION if topiq_model.selected_engine() == "topiq" else "portrait-experimental-0.1",
+            "beauty_model_name": "FPEM" if fpem_model.selected_engine() == "fpem" else "SCUT-FBP5500-ResNet50",
             "pose_model_available": POSE_MODEL_PATH.exists(),
             "pose_model_name": "MediaPipe Pose Landmarker Full",
             "photo_metrics_available": True,
             "photo_model_name": "OpenCV Multi-spectrum Photographic Analyzer",
             "rules": {m: [{"key": k, "name": n, "weight": w, "observe": o} for k,n,w,o in r]
-                      for m,r in RULES.items()}, "anchors": ANCHORS,
-            "body_available": True, "retention_hours": 24}
+                      for m,r in {**RULES,"body":body_model.RULES}.items()}, "anchors": ANCHORS,
+            "body_available": True, "body_model_name": body_model.MODEL, "body_rubric_version": body_model.RUBRIC_VERSION, "retention_hours": 24}
 
 
 @app.get("/api/assets")
@@ -345,10 +351,11 @@ def export_html(asset_id: str, report_id: str | None = None):
         if result['status'] == 'not_enabled':
             continue
         title = {"face": "颜值评分", "photography": "摄影技巧", "body": "身材评分"}[module]
-        if module == 'body' and result.get('rubric_version') != 'body-appearance-3.0':
+        if module == 'body' and result.get('rubric_version') not in ('body-appearance-3.0', 'body-visible-fixed-zero-1.0'):
             title = '形体评分（旧版）'
         names = {r[0]: r[1] for r in RULES[module]}
-        details = "".join(f"<li>{html.escape(names.get(d['key'], d['key']))}：{d['score'] if d['score'] is not None else '—'} / 10</li>" for d in result["dimensions"])
+        scale = result.get("dimension_scale", 10)
+        details = "".join(f"<li>{html.escape(names.get(d['key'], d['key']))}：{d['score'] if d['score'] is not None else '—'} / {scale}</li>" for d in result["dimensions"])
         benchmark_note = "<p>分析失败：" + html.escape(result.get("summary", "请重试")) + "</p>" if result.get("status") == "failed" else ""
         if module == "face" and result.get("visual_benchmark"):
             vb = result["visual_benchmark"]

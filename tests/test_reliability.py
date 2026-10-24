@@ -48,6 +48,7 @@ def sample(tmp_path, monkeypatch):
     identity = dict(provider="test-local", model="test-weights", reasoning_effort=None,
                     weights={"test.pt": "hash1"}, algorithm_version="v1", preprocessing_version="v1")
     monkeypatch.setattr(provider, "engine_identity", lambda module: copy.deepcopy(identity))
+    monkeypatch.setattr(pipeline, "face_assessability", lambda *a: {"assessable": True, "limitations": []})
     calls = []
 
     def evaluate(module, path, cancelled, **kwargs):
@@ -105,12 +106,15 @@ def test_failed_measurement_cannot_generate_scores(sample, monkeypatch, module):
         provider.fast_objective_evaluate(module, sample.path)
 
 
-def test_no_body_detected_is_unassessable_not_model_failure(sample, monkeypatch):
+def test_no_body_detected_is_zero_not_model_failure(sample, monkeypatch):
     monkeypatch.setattr(pose_model, "evaluate_body_pose", lambda im: {"detected": False, "scene": "head_only"})
     raw, _ = provider.fast_objective_evaluate("body", sample.path)
     raw.pop("_measurements")
     result = finalize("body", raw)
-    assert result["total"] is None
+    assert result["total"] == 0
+    assert result["status"] == "completed"
+    assert result["score_basis"] == "no_visible_body"
+    assert result["summary"] == ""
     assert all(d["score"] is None for d in result["dimensions"])
 
 
@@ -283,7 +287,8 @@ def test_missing_weights_cannot_reuse_loaded_model(tmp_path, monkeypatch, kind):
 def test_real_weight_content_is_part_of_identity(tmp_path, monkeypatch):
     weights = tmp_path / "test.pt"
     weights.write_bytes(b"first weights")
-    monkeypatch.setattr(beauty_model, "MODEL_PATH", weights)
+    from app import fpem_model
+    monkeypatch.setattr(fpem_model, "MODEL_PATH", weights)
     before = engine.identity("face")
     weights.write_bytes(b"other weights")
     after = engine.identity("face")
@@ -359,8 +364,9 @@ def test_restart_interrupts_job_without_replacing_previous_scores(sample):
     assert storage.get_asset(sample.aid)["report_json"] == previous
 
 
-def test_local_photography_smoke_records_real_identity(tmp_path):
+def test_local_photography_smoke_records_real_identity(tmp_path, monkeypatch):
     """Exercise actual local CV, schema and identity without external calls or user images."""
+    monkeypatch.setenv("BEAUTYPICK_PHOTO_MODEL", "cv")
     import numpy as np
     path = tmp_path / "synthetic.jpg"
     rng = np.random.default_rng(42)
@@ -373,3 +379,65 @@ def test_local_photography_smoke_records_real_identity(tmp_path):
     assert usage["provider"] == engine.ENGINE_ID
     assert usage["engine"] == engine.identity("photography")
     assert usage["total_tokens"] == 0
+
+
+def test_reanalysis_refreshes_saved_gate(sample, monkeypatch):
+    report = current(sample)
+    report["face_gate"] = {"assessable": False, "limitations": ["old gate"]}
+    storage.run("UPDATE assets SET report_json=? WHERE id=?", (json.dumps(report), sample.aid))
+    job = sample.run(("face",), force=True)
+    assert attempt(job)["face"]["status"] == "completed"
+    assert current(sample)["face_gate"]["assessable"] is True
+
+
+def test_face_gate_shared_minimum_preserves_blur_check():
+    import numpy as np
+    from app.images import face_assessability, MIN_FACE_PIXELS
+    rng = np.random.default_rng(42)
+    crop = Image.fromarray(rng.integers(0, 256, (170,170,3), dtype=np.uint8))
+    assert face_assessability({"pixel_width":89,"pixel_height":89}, crop)["assessable"]
+    # An 83px face produces a 158px intermediate crop; FPEM later resizes to224.
+    small = Image.fromarray(rng.integers(0, 256, (158,158,3), dtype=np.uint8))
+    assert face_assessability({"pixel_width":83,"pixel_height":83}, small)["assessable"]
+    assert not face_assessability({"pixel_width":MIN_FACE_PIXELS-1,"pixel_height":89}, crop)["assessable"]
+    assert not face_assessability({"pixel_width":89,"pixel_height":89}, Image.new("RGB",(170,170)))["assessable"]
+
+
+def test_no_body_zero_is_rankable(sample, monkeypatch):
+    from app.comparison import assessment
+    monkeypatch.setattr(pose_model, "evaluate_body_pose", lambda im: {"detected": False, "scene": "head_only"})
+    raw, _ = provider.fast_objective_evaluate("body", sample.path)
+    raw.pop("_measurements")
+    result = finalize("body", raw)
+    result["engine"] = sample.identity
+    asset = {"id": sample.aid, "filename": "test.png", "adult_confirmed": True,
+             "report_json": json.dumps({"id": "test", "body": result})}
+    item, error = assessment(asset, "body", {r[0]: r[2] for r in RULES["body"]})
+    assert error is None and item["score"] == 0
+
+
+def test_face_device_inference_serialized(monkeypatch):
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    import torch
+    active = peak = 0
+    guard = threading.Lock()
+
+    def forward(tensor):
+        nonlocal active, peak
+        with guard:
+            active += 1
+            peak = max(peak, active)
+        time.sleep(.02)
+        with guard:
+            active -= 1
+        return tensor
+
+    model = SimpleNamespace(forward_features=forward, global_pool=lambda x: x,
+                            fc=lambda x: torch.tensor(4.0))
+    monkeypatch.setattr(beauty_model, "_get_model", lambda: (model, "cpu", lambda im: torch.zeros(3,224,224)))
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(lambda _: beauty_model.evaluate_face_beauty(Image.new("RGB",(224,224))), range(4)))
+    assert all(r["available"] for r in results)
+    assert peak == 1

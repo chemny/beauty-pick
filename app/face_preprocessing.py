@@ -86,15 +86,15 @@ def warp_square(image: Image.Image, transform: dict) -> tuple[Image.Image, dict]
 
 
 def landmarks(image: Image.Image, target: dict) -> tuple[np.ndarray, Image.Image, dict]:
-    from .images import crop_face
+    from .images import crop_face, MIN_FACE_PIXELS
     from .beauty_model import _get_face_landmarker, _LANDMARKER_LOCK
     import mediapipe as mp
 
     if not target or any(type(target.get(k)) not in (int,float) or not math.isfinite(target[k])
                          for k in ("x","y","width","height")):
         raise ValueError("没有有效的已选目标面部")
-    if min(target["width"]*image.width, target["height"]*image.height) < 90:
-        raise ValueError("目标面部像素不足90，未补造评分")
+    if min(target["width"]*image.width, target["height"]*image.height) < MIN_FACE_PIXELS:
+        raise ValueError(f"原图中人脸小于{MIN_FACE_PIXELS}像素，无法提取足够面部特征")
     if target["width"] <= 0 or target["height"] <= 0 or min(target["x"], target["y"]) < 0 or max(target["x"]+target["width"],target["y"]+target["height"]) > 1.001:
         raise ValueError("目标面部超出原图")
     crop, box = crop_face(image, target)

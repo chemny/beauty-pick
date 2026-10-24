@@ -153,7 +153,7 @@ def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = 
                     for k, name in [("chest", "肩胸"), ("waist", "腰腹"), ("hips", "臀胯"),
                                     ("legs", "腿部"), ("proportion", "比例"), ("harmony", "协调")]
                 ],
-                "summary": "画面呈现主要为面部或局部，缺少足够的身材轮廓判断依据。",
+                "summary": "未包含足够身体范围，无法评估身材" if scene == "head_only" else "未识别到足够的身体轮廓，无法评估身材",
                 "strengths": [],
                 "limitations": ["镜头未包含身体躯干"],
                 "shooting_tips": ["如需评估身材体态，建议拍摄包含肩腰或全身的取景"],
@@ -267,8 +267,6 @@ def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = 
         comp = p_eval.get("composition", {})
         col = p_eval.get("color", {})
         bg = p_eval.get("background", {})
-        framing = p_eval.get("framing", {}).get("label", "半身")
-        style = p_eval.get("style", {}).get("label", "自然清新")
 
         face_exp_label = exp.get("face_exposure_label", "曝光良好")
         cl_label = comp.get("catchlight_label", "自然平光")
@@ -352,10 +350,8 @@ def fast_objective_evaluate(module: str, image_path: Path, body_scoring: bool = 
             photo_tips.insert(0, "注意头顶预留适度留白空间，避免画幅顶部切头顶造成视觉压迫")
 
         raw = {
-            "framing": framing,
-            "style": style,
             "dimensions": dimensions,
-            "summary": f"摄影技术指标表现扎实：{face_exp_label}且{cl_label}，{headroom_lbl}，{style}色彩氛围相得益彰。",
+            "summary": f"摄影技术指标表现扎实：{face_exp_label}且{cl_label}，{headroom_lbl}。",
             "strengths": [f"面部测光：{face_exp_label}", f"焦点表现：{cl_label}", f"构图留白：{headroom_lbl}"],
             "limitations": ["头顶贴边过紧"] if "贴边" in headroom_lbl else [],
             "shooting_tips": photo_tips,
@@ -389,8 +385,21 @@ def evaluate(module: str, image_path: Path, cancelled: Callable[[], bool], body_
     if cancelled and cancelled():
         raise ProviderError("用户取消分析")
     identity = engine_identity(module)
-    if module == "face" and identity.get("face_scoring_method") == "standard-face-v1":
+    if module == "body" and identity.get("scoring_method") == "visible-body-fixed-zero-v1":
+        from .body_model import infer
+        result, usage = infer(image_path, cancelled)
+    elif module == "face" and identity.get("face_scoring_method") == "fpem-face-v1":
+        from .fpem_model import infer
+        with Image.open(image_path) as image:
+            result = infer(image.convert("RGB"))
+        usage = {"provider": identity["provider"], "model": identity["model"], "total_tokens": 0, "cost": 0.0}
+    elif module == "face" and identity.get("face_scoring_method") == "standard-face-v1":
         from .standard_face import infer
+        with Image.open(image_path) as image:
+            result = infer(image.convert("RGB"))
+        usage = {"provider": identity["provider"], "model": identity["model"], "total_tokens": 0, "cost": 0.0}
+    elif module == "photography" and identity.get("scoring_method") == "topiq-iaa-v1":
+        from .topiq_model import infer
         with Image.open(image_path) as image:
             result = infer(image.convert("RGB"))
         usage = {"provider": identity["provider"], "model": identity["model"], "total_tokens": 0, "cost": 0.0}

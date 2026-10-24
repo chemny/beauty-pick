@@ -62,7 +62,8 @@ def local_report(asset: dict, statement: str | None = None) -> dict:
         gate = face_assessability(target, crop)
         try:
             from .beauty_model import evaluate_face_beauty
-            b_eval = evaluate_face_beauty(crop)
+            from .fpem_model import selected_engine
+            b_eval = evaluate_face_beauty(crop) if selected_engine() == "resnet50" else {}
             if b_eval.get("available"):
                 target["visual_benchmark"] = b_eval
         except Exception:
@@ -96,7 +97,8 @@ def set_target(asset: dict, target: dict) -> dict:
         save_crop(crop, s.crop_path(asset["id"]))
         try:
             from .beauty_model import evaluate_face_beauty
-            b_eval = evaluate_face_beauty(crop)
+            from .fpem_model import selected_engine
+            b_eval = evaluate_face_beauty(crop) if selected_engine() == "resnet50" else {}
             if b_eval.get("available"):
                 target["visual_benchmark"] = b_eval
         except Exception:
@@ -125,16 +127,19 @@ def evaluation_context(asset: dict, module: str, body_scoring: bool) -> tuple[di
     if original_hash != asset["sha256"]:
         raise provider.ProviderError("原图已变化或缺失，请重新上传")
     identity = provider.engine_identity(module)
-    standard = module == "face" and identity.get("face_scoring_method") == "standard-face-v1"
+    body = module == "body" and identity.get("scoring_method") == "visible-body-fixed-zero-v1"
+    standard = module == "face" and identity.get("face_scoring_method") in ("standard-face-v1", "fpem-face-v1")
+    topiq = module == "photography" and identity.get("scoring_method") == "topiq-iaa-v1"
     if standard:
         from .standard_face import prepare
         image, transform = prepare(oriented_rgb(s.asset_path(asset["id"])), json.loads(asset["target_json"] or "null"))
     else:
         source = s.crop_path(asset["id"]) if module == "face" else s.asset_path(asset["id"])
         image = oriented_rgb(source)
-        image.thumbnail((1800, 1800))
+        if not topiq and not body:
+            image.thumbnail((1800, 1800))
     output = io.BytesIO()
-    if standard:
+    if standard or topiq or body:
         image.save(output, "PNG")
     else:
         image.save(output, "JPEG", quality=90, optimize=True)
@@ -144,9 +149,12 @@ def evaluation_context(asset: dict, module: str, body_scoring: bool) -> tuple[di
                "target": json.loads(asset["target_json"] or "null"), "module": module,
                "body_scoring": body_scoring if module == "body" else None,
                "engine": identity,
-               "prompt_version": prompt_version(module), "rubric_version": rubric_version(module)}
+               "prompt_version": identity.get("prompt_version", prompt_version(module)),
+               "rubric_version": identity.get("rubric_version", rubric_version(module))}
     if standard:
         context.update(input_format="PNG", standard_face_transform=transform)
+    if topiq or body:
+        context.update(input_format="PNG")
     return context, data
 
 
@@ -170,8 +178,17 @@ def evaluate_module(asset: dict, module: str, body_scoring: bool, cache_key: str
             raise provider.ProviderError("本次执行的引擎版本与请求不一致，请重新分析")
         raw = dict(raw)
         measurements = raw.pop("_measurements", {})
-        if module == "face" and context["engine"].get("face_scoring_method") == "standard-face-v1":
+        if module == "face" and context["engine"].get("face_scoring_method") == "fpem-face-v1":
+            from .fpem_model import assessment
+            assessed = assessment(raw)
+        elif module == "face" and context["engine"].get("face_scoring_method") == "standard-face-v1":
             from .standard_face import assessment
+            assessed = assessment(raw)
+        elif module == "photography" and context["engine"].get("scoring_method") == "topiq-iaa-v1":
+            from .topiq_model import assessment
+            assessed = assessment(raw)
+        elif module == "body" and context["engine"].get("scoring_method") == "visible-body-fixed-zero-v1":
+            from .body_model import assessment
             assessed = assessment(raw)
         else:
             assessed = finalize(module, raw)
@@ -248,14 +265,21 @@ def run_job(job_id: str) -> None:
                 if not report["target"]:
                     report[module] = skipped(module, "请先选择目标面孔", "not_assessable")
                     continue
-                if not report["face_gate"]["assessable"]:
-                    report[module] = skipped(module, "；".join(report["face_gate"]["limitations"]), "not_assessable")
-                    continue
             try:
+                if module == "face":
+                    original = oriented_rgb(s.asset_path(asset["id"]))
+                    target = dict(report["target"])
+                    target.update(pixel_width=target["width"]*original.width,
+                                  pixel_height=target["height"]*original.height)
+                    crop, _ = crop_face(original, target)
+                    report["face_gate"] = face_assessability(target, crop)
+                    if not report["face_gate"]["assessable"]:
+                        report[module] = skipped(module, "；".join(report["face_gate"]["limitations"]), "not_assessable")
+                        continue
                 context, input_bytes = evaluation_context(asset, module, body_scoring)
                 cache_key = engine.signature(context)
             except Exception as exc:
-                reason = str(exc)[:300] if isinstance(exc, (provider.ProviderError, RuntimeError)) else "准备分析失败（" + type(exc).__name__ + "）"
+                reason = str(exc)[:300] if isinstance(exc, (provider.ProviderError, RuntimeError, ValueError)) else "准备分析失败（" + type(exc).__name__ + "）"
                 report[module] = skipped(module, reason, "failed")
                 continue
             cached = previous_report.get(module, {})

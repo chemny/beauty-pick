@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "path": "blaze_face_short_range.tflite",
+      "url": "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+      "bytes": 229746,
+      "sha256": "b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f"
+    },
+    {
+      "path": "face_detection_full_range.tflite",
+      "url": "https://storage.googleapis.com/mediapipe-assets/face_detection_full_range.tflite",
+      "bytes": 1083786,
+      "sha256": "3698b18f063835bc609069ef052228fbe86d9c9a6dc8dcb7c7c2d69aed2b181b"
+    },
+    {
+      "path": "face_landmarker.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+      "bytes": 3758596,
+      "sha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff"
+    },
+    {
+      "path": "pose_landmarker_full.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+      "bytes": 9398198,
+      "sha256": "4eaa5eb7a98365221087693fcc286334cf0858e2eb6e15b506aa4a7ecdcec4ad"
+    },
+    {
+      "path": "pose_landmarker_heavy.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task",
+      "bytes": 30664242,
+      "sha256": "64437af838a65d18e5ba7a0d39b465540069bc8aae8308de3e318aad31fcbc7b"
+    },
+    {
+      "path": "fpem.pth",
+      "url": "https://media.githubusercontent.com/media/Estella-LH/FPEM/c2965425247d7bf8b764d27e4483a06fc7a061e5/pretrained/fpem_srcc_0.9243.pth",
+      "bytes": 582528073,
+      "sha256": "5e18fb2a807366bd1f4bf8498493437059c60d4862a2f5b54ab664cc92af9615"
+    },
+    {
+      "path": "topiq-iaa-res50.pth",
+      "url": "https://github.com/chaofengc/IQA-PyTorch/releases/download/v0.1-weights/cfanet_iaa_ava_res50-3cd62bb3.pth",
+      "bytes": 293931049,
+      "sha256": "3cd62bb33f9933ed7c6e3d5e79129e81c898eba78b7a2af516a0b0b974616975"
+    },
+    {
+      "path": "c2pa-trust-anchors.pem",
+      "url": null,
+      "bytes": 44078,
+      "sha256": "db57e50b9bd4e4c786cbb91f38fd85e2af6a9d5412438a8cddcc42688df07ae5"
+    },
+    {
+      "path": "fashn-human-parser/config.json",
+      "url": "https://huggingface.co/fashn-ai/fashn-human-parser/resolve/1f80c34dbab321c5730dda5c3fea279fd3e97498/config.json",
+      "bytes": 1654,
+      "sha256": "87bd5b66419dbfa7c02cfbeb94e292454863b1606c5df29526b19a6c1de70d9f"
+    },
+    {
+      "path": "fashn-human-parser/preprocessor_config.json",
+      "url": "https://huggingface.co/fashn-ai/fashn-human-parser/resolve/1f80c34dbab321c5730dda5c3fea279fd3e97498/preprocessor_config.json",
+      "bytes": 340,
+      "sha256": "54007eb4cedae02565c4f035750aeebe3ddc53d36ab575e8534615623e6b6225"
+    },
+    {
+      "path": "fashn-human-parser/model.safetensors",
+      "url": "https://huggingface.co/fashn-ai/fashn-human-parser/resolve/1f80c34dbab321c5730dda5c3fea279fd3e97498/model.safetensors",
+      "bytes": 256146352,
+      "sha256": "e43c8c8a9b04f28798f0a4630cf18caa2cdb27a0d454fae43a5716e6f7078244"
+    }
+  ],
+  "body_service": {
+    "model": "qwen3.5:2b-mlx",
+    "digest": "9dd89c688f18f01cb3636d01f9512d8daae2a531b3e726f59d68cf7b91c8358e",
+    "url": "http://127.0.0.1:11434",
+    "source": "https://ollama.com/library/qwen3.5:2b-mlx",
+    "bytes": 3117475695
+  }
+}

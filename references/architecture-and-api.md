@@ -1,120 +1,44 @@
-# 颜选 · BeautyPick 架构、API 契约与操作参考
+# 应用接口与排查入口
 
-## 当前版本说明（0.2.0）
+## 职责
 
-正式评分完全在本地运行，不依赖Codex登录。颜值使用 `app/standard_face.py` 的固定标准裁脸和原ResNet50整体分，不输出五项独立美感评分；空分项列表是预期结果。`app/face_preprocessing.py`保留旧显示换算，范围35–99，截顶不表示接近完美。
+React/TypeScript界面与`app.cli`共用FastAPI服务，SQLite保存资产、报告、历史和任务，本地文件保存原图/裁图。Skill提供调用规范，不承载评分算法。
 
-`app/engine.py`记录真实权重、源码、依赖与预处理身份，缓存按实际输入和引擎隔离。历史报告不会自动迁移，重评失败不会用旧分假冒本次成功。下面保留架构与旧接口说明；涉及旧五项、客观骨相、云端双轨的表述不再代表当前默认实现。
+具体引擎以运行时为准；优先检查`/api/status`、报告engine及模块适配器，不照抄历史模型清单。常见排查入口：
 
-## 1. 系统架构与各层职责
+| 范围 | 项目代码 |
+| --- | --- |
+| API、授权、会话 | app/main.py |
+| CLI参数与任务等待 | app/cli.py |
+| 任务、缓存、结果保护 | app/pipeline.py、app/engine.py |
+| 持久化与显示版本校验 | app/storage.py |
+| 检测、质量与标准裁脸 | app/images.py、app/face_preprocessing.py、app/standard_face.py |
+| 模型适配与提示 | app/provider.py、app/*_model.py、app/body_prompts.py |
+| 候选参数与测量 | app/body_measure_worker.py、app/body_parameters.py及其几何模块 |
+| 排行与来源证据 | app/comparison.py、app/provenance.py |
 
-```
-┌────────────────────────────────────────────────────────┐
-│               用户交互层 (Web UI & CLI)                 │
-│   Web: React 19 + TypeScript + Vite (端口 8765)         │
-│   CLI: python -m app.cli (与 Web 共用同一底层 API)      │
-└───────────────────────────┬────────────────────────────┘
-                            │
-┌───────────────────────────▼────────────────────────────┐
-│               应用后端服务 (FastAPI)                    │
-│   路由管理、会话鉴权 (x-portrait-token)、文件哈希防重    │
-│   人脸检测与裁切 (BlazeFace / OpenCV)、来源证据解析     │
-│   任务队列 (并发度 ≤ 2、180s 超时、支持取消)            │
-│   持久化存储 (SQLite: data/portrait.db, data/assets)   │
-└───────────────────────────┬────────────────────────────┘
-                            │
-┌───────────────────────────▼────────────────────────────┐
-│               双轨评分与度量引擎                       │
-│   1. 本地硬件加速客观物理度量引擎 (Apple MPS / CV):    │
-│      - ResNet50 骨相基准、三庭五眼、微观真实肌理       │
-│      - BlazePose 骨骼点、头身比、姿态倾角              │
-│      - Tenengrad 边缘清晰度、动态范围、景深虚化分离比   │
-│   2. 视觉大语言模型 (Codex CLI 或云端兼容接口):        │
-│      - gpt-6.1-sol / medium 或标准兼容端点             │
-│      - 关闭 tools/skills/网络，严格校验 Pydantic Schema │
-└────────────────────────────────────────────────────────┘
-```
+来源签名、文件标记和用户说明分开；没有EXIF不能直接断定AI，签名有效不证明人物真实。
 
-- **beauty-pick Skill**：面向开发与自动化助手的调用规约与排查指南，**不维护任何分叉评分算法**。所有评分逻辑、提示词均由 `app/scoring.py` 与 `app/provider.py` 唯一决定。
-- **评估引擎**：支持本地客观度量引擎加速与大语言模型双轨运行，严格校验 Pydantic JSON Schema。
+## API
 
----
+先用`GET /api/session`建立会话Cookie并获取token。写请求需要`x-portrait-token`；不要把token写入任务记录。具体字段以本机路由为准。
 
-## 2. 三模块评分规范与数据字典
+| 端点 | 方法 | 用途 |
+| --- | --- | --- |
+| /api/status | GET | 引擎与应用配置 |
+| /api/assets | GET / POST | 列表／multipart上传 |
+| /api/assets/{id}/consent | POST | 当前授权与成年状态 |
+| /api/assets/{id}/analyze | POST | modules、force等分析参数 |
+| /api/jobs | GET | 任务状态 |
+| /api/jobs/{id}/cancel | POST | 取消任务 |
+| /api/assets/{id}/history | GET | 历史结果 |
+| /api/assets/{id}/export.json | GET | 完整JSON报告 |
+| /api/assets/{id}/export.html | GET | HTML报告 |
+| /api/assets/{id}/vote | PUT | 投票 |
+| /api/assets/{id} | DELETE | 仅限获准删除的素材 |
 
-### 2.1 颜值模块 (Face, 满分 100)
-- **输入**：人脸裁切图（保留额头、下巴与发际线上下文）。
-- **五大维度权重与代码字段**：
-  - 眉眼 (`eyes`): 20%
-  - 鼻唇美感 (`nose_lips`): 20%
-  - 五官协调性 (`harmony`): 25%
-  - 脸型与轮廓 (`face_shape`): 25%
-  - 皮肤呈现 (`skin`): 10%
-- **客观物理度量挂载**：ResNet50 骨相基准连续分、三庭五眼比例、瞳孔眼神光斑；微观肌理真实毛孔检测，过度磨皮与塑料感扣分。
-- **计算规则**：分项与总分均保留一位小数。神态、笑容、发型不计入颜值分。
-- **空分原则**：任一必要维度因遮挡或不可评时，总分为 `null`，严禁补零或臆造。
+队列并发、超时、保留策略和模块默认值读取实际配置；不要把旧版本固定数值当作当前合同。任务completed还需核对请求模块是否成功，partial/failed不能靠现存旧报告掩盖。
 
-### 2.2 身材模块 (Body, 满分 100)
-- **输入**：整图。
-- **六大维度权重与代码字段 (`body-appearance-3.0`)**：
-  - 肩胸 (`chest`): 25%
-  - 腰腹 (`waist`): 20%
-  - 臀胯 (`hips`): 15%
-  - 腿部 (`legs`): 15%
-  - 比例 (`proportion`): 15%
-  - 协调 (`harmony`): 10%
-- **造型与身材解耦规范**：模特摆拍姿态（如单肩抬起、侧倾、高低肩）属于摄影造型动作，**严禁作为身材形体缺陷扣分**；骨骼姿态指标（`pose_metrics`）仅用于展示体态数据和输出拍摄建议。
-- **计算规则**：不可见维度输出 `null`，按可见项实际权重动态重归一化折算总分。只要存在有效可评项即可计算总分，不设全身或至少三项门槛。
+## 验证与项目记录
 
-### 2.3 摄影模块 (Photography, 满分 100)
-- **输入**：整图。
-- **五大维度权重与代码字段**：
-  - 曝光与光线 (`light`): 25%
-  - 清晰度与技术质量 (`clarity`): 20%
-  - 构图与视角 (`composition`): 20%
-  - 色彩与后期 (`color`): 20%
-  - 背景与视觉叙事 (`background`): 15%
-- **计算规则**：采用 **0.1 连续精细浮点分体系**（总分与细项均保留 1 位小数）。接入 Tenengrad 边缘梯度、面部专属测光均值、黄金三分线偏差与主体对背景景深虚化分离比（`dof_separation`），彻底拉开各照片技术梯度。
-
-### 2.4 来源验证 (Provenance)
-- **依据**：C2PA 凭据（签名与操作记录）及 EXIF 元数据。
-- **原则**：客观记录，签名有效仅代表未篡改，不等于签发者绝对可信或人物真实；无 EXIF 不能粗暴判定为 AI，文件平台标记与用户口述严格区分展示。
-
----
-
-## 3. 本地 API 核心端点
-
-所有写请求需要携带 `x-portrait-token` 请求头（通过 `GET /api/session` 获得）。
-
-| 端点 | 方法 | 说明 |
-| :--- | :--- | :--- |
-| `/api/session` | GET | 获取会话 Token |
-| `/api/status` | GET | 服务健康检查、模型就绪状态、队列长度 |
-| `/api/assets` | GET | 获取所有已上传图片及其最新评分卡 |
-| `/api/assets` | POST | 上传图片 (multipart/form-data: `file`, `rights_confirmed`, `adult_confirmed`) |
-| `/api/assets/{id}/consent` | POST | 授权与成年确认 (`adult_confirmed`, `external_consent`, `external_scope`) |
-| `/api/assets/{id}/analyze` | POST | 触发分析任务 (`modules`, `body_scoring`, `force`) |
-| `/api/jobs` | GET | 查询后台任务列表与运行状态 |
-| `/api/jobs/{id}/cancel` | POST | 取消排队中或运行中的任务 |
-| `/api/assets/{id}/export.json` | GET | 导出完整评分与元数据 JSON |
-| `/api/assets/{id}/export.html` | GET | 导出独立 HTML 报告 |
-| `/api/assets/{id}/vote` | PUT | 切换右上角心形投票状态 (`{"voted": true/false}`) |
-| `/api/assets/{id}` | DELETE | 彻底删除图片及报告数据（不可撤销） |
-
----
-
-## 4. 任务状态与失败处理
-
-- **任务状态**：`queued`（排队中）-> `running`（评估中）-> `completed`（已完成）/ `failed`（失败）/ `cancelled`（已取消）。
-- **失败规范**：当任务处于 `failed`、`cancelled` 或超时时，CLI 与 API 均会抛出真实错误，**绝不可用历史旧分或随机数据冒充当前输出**。
-- **并发控制**：默认并发限制为 2，超时阈值为 180 秒。
-
----
-
-## 5. 数据持久化与备份指南
-
-- **数据保留**：所有导入资产默认 `retained = 1` 永久保留，绝无 24 小时自动过期机制。
-- **备份操作**：在任何涉及数据库结构迁移或批量变更前，建议执行：
-  ```bash
-  cp data/portrait.db "data/portrait.db.backup.$(date +%Y%m%d%H%M%S)"
-  ```
+通用检查见[测量、评分和验证](measurement-and-validation.md)。具体版本、实验、样例问题及验证结果读取应用项目的`docs/validation.md`和对应试验记录，不在技能内重复维护。后台日志、模型诊断和缓存详情留在技术记录，不擅自增加普通用户界面的内部话术。

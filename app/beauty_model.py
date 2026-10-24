@@ -17,6 +17,7 @@ _DEVICE: Any = None
 _TRANSFORMS: Any = None
 _MODEL_FINGERPRINT = None
 _LOCK = threading.Lock()
+_INFERENCE_LOCK = threading.Lock()
 
 MODEL_PATH = ROOT / "models" / "scut_fbp5500_beauty.pt"
 
@@ -87,8 +88,10 @@ def evaluate_face_beauty(image: Image.Image) -> dict:
         import torch
 
         img = image.convert("RGB")
-        tensor = tf(img).unsqueeze(0).to(device)
-        with torch.no_grad():
+        # MPS shader-cache initialization can crash on concurrent first inference.
+        # Serialize this shared model's device operations; other modules stay parallel.
+        with _INFERENCE_LOCK, torch.no_grad():
+            tensor = tf(img).unsqueeze(0).to(device)
             feat = model.forward_features(tensor)
             pooled = model.global_pool(feat)
             raw_score = float(model.fc(pooled).item())

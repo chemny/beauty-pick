@@ -4,9 +4,9 @@
 
 ## 项目简介
 
-颜选（BeautyPick）是本地人像评估与选片应用，提供Agent Skill调用入口。颜值采用本地模型整体评分，身材与摄影使用本地测量规则。分数反映模型偏好与启发式规则，不是客观颜值或经过验证的解剖学判断；正式评分无需Codex账号。
+颜选（BeautyPick）是本地人像评估与选片应用，提供Agent Skill调用入口。颜值采用本地模型整体评分，身材由本机千问结合候选参数评分，摄影采用 TOPIQ-IAA。分数反映模型偏好与启发式规则，不是客观颜值或经过验证的解剖学判断；正式评分无需Codex账号。
 
-当前版本：**0.2.0**，详见[版本记录](./CHANGELOG.md)。
+版本：**0.3.0**，详见[版本记录](./CHANGELOG.md)。
 
 ## 效果预览
 
@@ -16,38 +16,41 @@
 
 | 能力 | 它能帮你做什么 |
 |---|---|
-| 颜值骨相综合评估 | 固定标准裁脸后由ResNet50输出整体分，不编造独立部位评分；旧标尺最高可截顶到99分。 |
-| 身材体态比例分析 | 评估肩胸、腰腹、臀胯与腿部线条，严格解耦拍摄姿态（高低肩不扣分）并按可见部位动态归一。 |
-| 摄影光学精细评分 | 采用 0.1 连续精细浮点分体系，依据 Tenengrad 锐度、面部专属测光与景深虚化分离比拉开梯度。 |
-| 来源凭证与防伪核验 | 解析 C2PA 数字凭证与 EXIF 元数据，准确区分相机直出、AI 生成与后期编辑记录。 |
+| 颜值整体评分 | 固定裁脸后由本地 FPEM 输出整体分，不生成无依据的部位分。 |
+| 身材可见部分评分 | 本机千问结合 MediaPipe、FASHN 和候选参数评价肩胸、腰腹、臀胯、腿部；固定权重，缺项贡献为0。 |
+| 摄影美感评分 | 本地 TOPIQ-IAA 输出整体分，不编造独立摄影分项。 |
+| 来源证据检查 | 展示 C2PA、EXIF 和文件标记；缺少证据时不推断来源。 |
 | 智能选片对照排行 | 在多张候选人像中基于已有客观技术分进行确定性多维横向排序，辅助快速挑片。 |
 
 ## 安装
 
 ### 配置要求
 
-使用颜选 · BeautyPick 前，请确保运行环境满足以下基本条件：
+安装前需具备以下后台和本地运行条件。
 
 | 项目 | 要求 |
 |---|---|
-| Agent 客户端 | Google Antigravity、OpenAI Codex 或 Claude Code |
-| Python 环境 | Python 3.10 或更高版本 |
-| 操作系统 | macOS（推荐 Apple Silicon 硬件加速）、Linux 或 Windows |
+| 完整后台 | Apple Silicon Mac、Python 3.13、支持指定MLX模型的Ollama |
+| Windows客户端 | 通过OpenSSH隧道连接用户自有Mac后台；不在Windows原生运行MLX身材模型 |
+| 模型 | FPEM、TOPIQ-IAA、FASHN、MediaPipe与指定千问版本，首次下载约4.3 GB，另需依赖空间 |
+| Agent | 通过本机CLI/API调用，无需Codex账号；技能安装目录须显式指定 |
 
 ### 快速安装
 
-向你的 Agent 客户端发送自然语言指令以安装技能：
+向Agent发送安装请求，并明确只注册所需技能目录：
 
 ```text
-请从 https://github.com/chemny/beauty-pick 安装 beauty-pick 技能
+请从 https://github.com/chemny/beauty-pick 安装BeautyPick，先检查运行条件，并只把技能注册到我指定的Agent目录。
 ```
+
+已有技能目录不会覆盖，请先确认更新方式。详见[完整安装、Windows连接与故障处理](docs/runtime-install.md)。安装器不会自动同步其他Agent，也不会静默替换模型。
 
 ## 快速开始
 
 向你的 Agent 发送日常对话指令开始评估人像照片：
 
 ```text
-帮我用颜选评估这张人像照片，分析一下颜值骨相、身材比例与摄影构图。
+帮我用颜选评估这张人像照片，分析一下颜值、可见身材与摄影效果。
 ```
 
 若使用本地可视化 Web 界面，直接运行 `./start.sh` 并访问 `http://127.0.0.1:8765` 即可。
@@ -76,8 +79,8 @@
 
 颜选正式入口使用本地评分，Agent通过CLI/API调用应用：
 
-1. **本地评分引擎**：颜值从关键点生成固定12%边距、无旋转的224×224正方形输入，由原ResNet50输出整体分，沿用旧显示换算。没有独立部位评分；99分可能来自显示截顶，不能理解为接近完美。身材和摄影继续使用本地测量规则。
-2. **身材姿态解耦引擎**：通过 BlazePose 33 个骨骼关键点测算动态，模特单肩抬起、侧倾或摆拍动作独立归为造型动作，严格与身材形体评分隔离。
+1. **本地评分引擎**：颜值使用 FPEM，摄影使用 TOPIQ-IAA；身材使用本机千问与候选参数。分数表达模型及项目规则偏好，不是科学审美标准。
+2. **身材参数与评分**：MediaPipe 与 FASHN 提供关键点、分割和候选轮廓，千问据可见信息评分。固定肩胸25%、腰腹30%、臀胯25%、腿部20%，缺失观察保持空值、总分贡献按0计算。
 3. **服务与任务队列层**：基于 FastAPI 调度异步评估队列，并在 SQLite（`data/portrait.db`）中保留完整测评台账与快照。
 4. **Agent 交互契约层**：标准 `SKILL.md` 规范结合 Pydantic 校验，确保输入输出精准受控。
 
@@ -89,16 +92,16 @@ beautypick/
 ├── references/               # 系统架构参考与 REST API 端点契约
 ├── app/                      # FastAPI 后端服务、评分算法与 CLI
 │   ├── scoring.py            # 维度权重、评分 Schema 与评分准则
-│   ├── provider.py           # 客观物理度量引擎编排与算分公式
-│   ├── beauty_model.py       # ResNet50 整体偏好评分与面部几何辅助
-│   ├── photo_model.py        # Tenengrad 锐度、曝光与构图光学指标
+│   ├── provider.py           # 评分引擎编排
+│   ├── beauty_model.py       # 旧 ResNet50 回退适配器
+│   ├── photo_model.py        # 旧 CV 摄影回退适配器
 │   └── pose_model.py         # 姿态骨骼关键点提取与造型姿势解耦
 ├── web/                      # React 19 + TypeScript + Vite 前端工程
 │   └── dist/                 # 预编译生产静态产物（免装 Node.js/npm）
 ├── models/                   # 本地离线模型文件与 CAI 信任锚
 ├── scripts/                  # 模型下载与校验工具脚本
 ├── assets/                   # 效果预览截图与公开示例素材
-├── setup.sh                  # 一键环境初始化与 Skill 自动注册脚本
+├── setup.sh                  # 显式安装与单目标 Skill 注册入口
 ├── start.sh                  # 服务启动脚本
 └── requirements.txt          # Python 核心依赖定义
 ```
@@ -107,7 +110,7 @@ beautypick/
 
 本项目采用 [MIT 许可证](LICENSE)。
 
-`models/` 目录中的预训练模型遵循 Google MediaPipe 和 Content Authenticity Initiative 官方开源许可规范。
+第三方实现与模型遵循各自条款，其中TOPIQ随附非商业许可。详见[第三方组件与声明](THIRD_PARTY.md)，不能以根MIT覆盖这些条件。
 
 ## 关于我
 

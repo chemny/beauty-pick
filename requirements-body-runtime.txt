@@ -1,0 +1,5 @@
+# Install only into models/body-runtime/deps, not the primary application environment.
+# Existing local runtime already uses these versions.
+transformers==4.57.6
+huggingface-hub==0.36.0
+tokenizers==0.22.2

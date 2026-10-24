@@ -37,19 +37,33 @@ def standard_crop(image: Image.Image, points: np.ndarray):
     side=float(max(high-low)*(1+2*MARGIN));center=(low+high)/2
     if min(high-low)<40 or side<60:raise ValueError("可见面部像素不足")
     left,top=center-side/2;right,bottom=center+side/2
-    if min(left,top)<0 or right>image.width or bottom>image.height:
-        raise ValueError("标准面部范围超出原图，不补齐或改变脸部占比")
+    if min(low)<0 or high[0]>image.width or high[1]>image.height:
+        raise ValueError("面部关键点超出原图，无法用补边恢复不可见的面部")
     box=(float(left),float(top),float(right),float(bottom))
     # Local coordinates avoid PIL's absolute float-coordinate rounding varying
     # with the surrounding canvas. Keep interpolation support outside the ROI.
     guard=int(np.ceil(side/224))+2
-    origin_x=max(0,int(np.floor(left))-guard);origin_y=max(0,int(np.floor(top))-guard)
-    patch=image.convert("RGB").crop((origin_x,origin_y,min(image.width,int(np.ceil(right))+guard),min(image.height,int(np.ceil(bottom))+guard)))
-    relative=tuple(round(v-o,6) for v,o in zip(box,(origin_x,origin_y,origin_x,origin_y)))
+    padding={"left":max(0,int(np.ceil(-left))+guard),"top":max(0,int(np.ceil(-top))+guard),
+             "right":max(0,int(np.ceil(right-image.width))+guard),"bottom":max(0,int(np.ceil(bottom-image.height))+guard)}
+    # Only add a border when the requested square actually leaves the image.
+    padded=bool(min(left,top)<0 or right>image.width or bottom>image.height)
+    if not padded:padding={key:0 for key in padding}
+    canvas=image.convert("RGB")
+    if padded:
+        if (image.width+padding['left']+padding['right'])*(image.height+padding['top']+padding['bottom'])>100_000_000:
+            raise ValueError("标准裁脸补边范围过大，请使用更紧凑的原图")
+        pixels=np.pad(np.asarray(canvas),((padding['top'],padding['bottom']),(padding['left'],padding['right']),(0,0)),mode='edge')
+        canvas=Image.fromarray(pixels)
+    shift_x,shift_y=padding['left'],padding['top']
+    actual_box=(left+shift_x,top+shift_y,right+shift_x,bottom+shift_y)
+    origin_x=max(0,int(np.floor(actual_box[0]))-guard);origin_y=max(0,int(np.floor(actual_box[1]))-guard)
+    patch=canvas.crop((origin_x,origin_y,min(canvas.width,int(np.ceil(actual_box[2]))+guard),min(canvas.height,int(np.ceil(actual_box[3]))+guard)))
+    relative=tuple(round(v-o,6) for v,o in zip(actual_box,(origin_x,origin_y,origin_x,origin_y)))
     output=patch.resize((224,224),Image.Resampling.BILINEAR,box=relative)
     return output,{"source_box":list(box),"face_extent":(high-low).tolist(),"margin":MARGIN,
                    "long_face_extent_fraction":1/(1+2*MARGIN),"rotation_degrees":0.,
-                   "resize":"PIL BILINEAR float source box","padding":False}
+                   "resize":"PIL BILINEAR float source box","padding":padded,
+                   "padding_pixels":padding,"padding_method":"edge" if padded else None}
 
 
 def prepare(image: Image.Image,target: dict):

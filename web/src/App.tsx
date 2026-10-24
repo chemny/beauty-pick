@@ -1,15 +1,25 @@
-import { useEffect, useState } from 'react'
-import { Aperture, ArrowLeft, ImagePlus, Heart, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Aperture, ArrowLeft, ImagePlus, Heart, LoaderCircle, Trash2, X } from 'lucide-react'
+import { uploadPhoto } from './upload'
 import './Simple.css'
+
+type SortTab = 'face'|'photography'|'body'|'newest'
+function savedSort(): SortTab {
+ try {
+  const value=localStorage.getItem('beautypick.sort')
+  if(value==='face'||value==='body'||value==='photography'||value==='newest')return value
+ } catch { /* Storage may be restricted. */ }
+ return 'face'
+}
 
 type Dim = { key: string; status: string; score: number | null; evidence: string; limitations: string[] }
 type VisualBenchmark = { benchmark_score: number; raw_score: number; tier: string; model?: string; guidance?: string; three_parts_ratio?: string; eye_spacing_ratio?: number; face_shape_label?: string; nose_ratio_label?: string; nose_interocular_ratio?: number; face_lw_ratio?: number; has_catchlight?: boolean; is_over_smoothed?: boolean; skin_texture_label?: string }
-type PoseMetrics = { scene: string; scene_display: string; head_ratio?: number | null; shoulder_hip_ratio?: number | null; torso_leg_ratio?: number | null; shoulder_tilt_deg?: number | null; shoulder_balance?: string | null }
+type PoseMetrics = { detected?: boolean; scene: string; scene_display: string; head_ratio?: number | null; shoulder_hip_ratio?: number | null; torso_leg_ratio?: number | null; shoulder_tilt_deg?: number | null; shoulder_balance?: string | null }
 type PhotoMetrics = { benchmark_score: number; exposure_label: string; face_exposure_label?: string | null; light_softness?: string | null; clarity_label: string; composition_note: string; headroom_label?: string | null; dof_label: string; catchlight_label?: string | null }
-type Assessment = { visual_benchmark?: VisualBenchmark; pose_metrics?: PoseMetrics; photo_metrics?: PhotoMetrics; rubric_version?: string; assessed_count?: number; dimension_count?: number; status: string; total: number | null; summary: string; dimensions: Dim[]; strengths: string[]; limitations: string[]; shooting_tips: string[]; editing_tips: string[]; model?: string }
+type Assessment = { dimension_scale?: number; scoring_method?: string; scene?: string; visual_benchmark?: VisualBenchmark; pose_metrics?: PoseMetrics; photo_metrics?: PhotoMetrics; rubric_version?: string; assessed_count?: number; dimension_count?: number; status: string; total: number | null; summary: string; dimensions: Dim[]; strengths: string[]; limitations: string[]; shooting_tips: string[]; editing_tips: string[]; model?: string }
 type Box = { x: number; y: number; width: number; height: number }
 type Report = { id: string; created_at: string; filename: string; faces: Box[]; target: Box | null; detector_error: string | null; face: Assessment; photography: Assessment; body: Assessment; quality: Record<string, number | string>; provenance: { category: string; platform?: string | null; manifest_status: string; signature_status: string; asset_binding_status: string; signer_trust: string; evidence: { title: string; type: string; level: string; value?: string; claim_generator?: string; validation_issues?: string[] }[]; limitations: string[] }; usage: { input_tokens?: number; output_tokens?: number; elapsed_seconds: number }[] }
-type Asset = { latest_attempt?: {status:string;result?:{report_id:string}|null}; voted: boolean; vote_count: number; photo_tags: {framing:string|null;style:string|null}; user_source: string; source_display: {label:string;basis:string|null;platform:string|null;platform_basis:string|null}; size: number; mime: string; id: string; project_id: string | null; filename: string; width: number; height: number; created_at: string; status: string; retained: boolean; adult_confirmed: boolean; external_consent: boolean; external_scope: string; preview_url: string; crop_url: string | null; target: Box | null; report: Report }
+type Asset = { photo_number: number; latest_attempt?: {status:string;result?:{report_id:string}|null}; voted: boolean; vote_count: number; user_source: string; source_display: {label:string;basis:string|null;platform:string|null;platform_basis:string|null}; size: number; mime: string; id: string; project_id: string | null; filename: string; width: number; height: number; created_at: string; status: string; retained: boolean; adult_confirmed: boolean; external_consent: boolean; external_scope: string; preview_url: string; crop_url: string | null; target: Box | null; report: Report }
 type Job = { id: string; asset_id: string; status: string; error: string | null }
 type Rule = { key: string; name: string; weight: number; observe: string }
 type Status = { model: string; reasoning_effort: string; provider_available: boolean; max_upload_mb: number; usage: { calls: number; limit: number | null; tokens: number }; rules: Record<string, Rule[]>; anchors: Record<string, Record<string, string>>; rubric_version: string }
@@ -31,6 +41,8 @@ function Rating({title,result,rules}:{title:string;result:Assessment;rules:Rule[
  const vb = result.visual_benchmark
  const pm = result.pose_metrics
  const ph = result.photo_metrics
+ const dimScale = result.dimension_scale || 10
+ const noBody = title==='身材' && result.scene==='head_only' && result.scoring_method!=='visible-body-fixed-zero-v1'
 
  return <section className="result-block">
   <div className="result-title"><h2>{title}</h2><strong>{score(result.total,true)}<small>/100</small></strong></div>
@@ -44,7 +56,7 @@ function Rating({title,result,rules}:{title:string;result:Assessment;rules:Rule[
     <div className={`diag-tag ${vb.is_over_smoothed ? 'diag-warn' : 'diag-success'}`}><span>微观肌理</span><b>{vb.is_over_smoothed ? '过度磨皮扣分' : '自然真实毛孔'}</b></div>
   </div>}
 
-  {pm && title==='身材' && <div className="diag-dashboard">
+  {pm?.detected!==false && pm && title==='身材' && <div className="diag-dashboard">
     <div className="diag-tag diag-primary"><span>取景构型</span><b>{pm.scene_display}</b></div>
     <div className="diag-tag diag-success"><span>造型动态</span><b>{pm.shoulder_balance || '自然体态'}（侧倾 {pm.shoulder_tilt_deg ?? 0}°）</b></div>
     {pm.shoulder_hip_ratio && <div className="diag-tag"><span>肩/胯比例</span><b>{pm.shoulder_hip_ratio}</b></div>}
@@ -61,24 +73,28 @@ function Rating({title,result,rules}:{title:string;result:Assessment;rules:Rule[
     <div className="diag-tag"><span>景深分离</span><b>{ph.dof_label}</b></div>
   </div>}
 
-  {result.total==null?<p className="quiet">{result.status==='outdated'?'评分规则已更新，请重新分析':result.status==='not_enabled'?'尚未评分':result.status==='failed'?'分析失败，请重试':'可评项目不足，暂无评分'}</p>:result.summary&&<p className="result-summary">{result.summary}</p>}
+  {!noBody && (result.total==null?<p className="quiet">{result.status==='outdated'?'评分规则已更新，请重新分析':result.status==='not_enabled'?'尚未评分':result.summary||result.limitations[0]||'可评项目不足，暂无评分'}</p>:result.summary&&<p className="result-summary">{result.summary}</p>)}
 
-  {result.dimensions.length>0&&<div className={`rating-parts ${title==='身材'?'body-parts':''}`}>{rules.map(r=>{const dim=result.dimensions.find(d=>d.key===r.key);return <div key={r.key}><span>{shortNames[r.key]||r.name}</span><b>{score(dim?.score,true)}<small>/10</small></b></div>})}</div>}
+  {!noBody&&result.dimensions.length>0&&<div className={`rating-parts ${title==='身材'?'body-parts':''}`}>{rules.map(r=>{const dim=result.dimensions.find(d=>d.key===r.key);return <div key={r.key}><span>{shortNames[r.key]||r.name}</span><b>{score(dim?.score,true)}<small>/{dimScale}</small></b></div>})}</div>}
 
-  {result.dimensions.length>0&&<div className="evidence-section">
-    <button className="evidence-toggle-btn" onClick={()=>setShowEvidence(!showEvidence)}>{showEvidence?'收起各细项实测依据 ▲':'查看各细项客观实测依据详情 ▼'}</button>
-    {showEvidence&&<div className="evidence-list">{rules.map(r=>{const dim=result.dimensions.find(d=>d.key===r.key);if(!dim)return null;return <div key={r.key} className="evidence-item"><div className="evidence-header"><span className="dim-name">{r.name}（{shortNames[r.key]||r.name}）</span><b className="dim-score">{score(dim.score,true)} / 10</b></div><p className="dim-evidence">{dim.evidence||'暂无实测记录'}</p>{dim.limitations&&dim.limitations.length>0&&<p className="dim-limitation">说明：{dim.limitations.join('；')}</p>}</div>})}</div>}
+  {!noBody&&result.dimensions.length>0&&<div className="evidence-section">
+    <button className="evidence-toggle-btn" onClick={()=>setShowEvidence(!showEvidence)}>{title==='身材'?(showEvidence?'收起评分依据 ▲':'查看评分依据 ▼'):(showEvidence?'收起各细项实测依据 ▲':'查看各细项客观实测依据详情 ▼')}</button>
+    {showEvidence&&<div className="evidence-list">{rules.map(r=>{const dim=result.dimensions.find(d=>d.key===r.key);if(!dim)return null;return <div key={r.key} className="evidence-item"><div className="evidence-header"><span className="dim-name">{r.name}（{shortNames[r.key]||r.name}）</span><b className="dim-score">{score(dim.score,true)} / {dimScale}</b></div><p className="dim-evidence">{dim.evidence||'暂无实测记录'}</p>{dim.limitations&&dim.limitations.length>0&&<p className="dim-limitation">说明：{dim.limitations.join('；')}</p>}</div>})}</div>}
   </div>}
 
-  {(title==='摄影'||title==='身材')&&result.shooting_tips.length>0&&<div className="one-tip"><span>实操与拍摄建议</span>{result.shooting_tips.map((t,idx)=><p key={idx} className="tip-item">💡 {t}</p>)}</div>}
+  {!noBody&&(title==='摄影'||title==='身材')&&result.shooting_tips.length>0&&<div className="one-tip"><span>实操与拍摄建议</span>{result.shooting_tips.map((t,idx)=><p key={idx} className="tip-item">💡 {t}</p>)}</div>}
  </section>
 }
 export default function App(){
  const [assets,setAssets]=useState<Asset[]>([]),[jobs,setJobs]=useState<Job[]>([]),[status,setStatus]=useState<Status|null>(null)
  const [voting,setVoting]=useState<string[]>([])
- const [selected,setSelected]=useState<string|null>(null),[sort,setSort]=useState<'face'|'photography'|'body'|'newest'>('face')
+ const [deleting,setDeleting]=useState<string[]>([])
+ const [selected,setSelected]=useState<string|null>(null),[sort,setSort]=useState<SortTab>(savedSort)
+ useEffect(()=>{try{localStorage.setItem('beautypick.sort',sort)}catch{/* Sorting still works without storage. */}},[sort])
  const [error,setError]=useState(''),[busy,setBusy]=useState(''),[uploadOpen,setUploadOpen]=useState(false),[consentOpen,setConsentOpen]=useState(false)
  const [history,setHistory]=useState<Report[]|null>(null)
+ const uploadLock=useRef(false)
+ const [uploadProgress,setUploadProgress]=useState<{index:number;total:number;percent:number;phase:'uploading'|'processing'|'starting'}|null>(null)
  const [more,setMore]=useState(false)
  const asset=assets.find(a=>a.id===selected)
  const activeJobs=jobs.filter(j=>['queued','running'].includes(j.status))
@@ -90,6 +106,17 @@ export default function App(){
  async function action(fn:()=>Promise<void>){setError('');try{await fn()}catch(e){setError(e instanceof Error?e.message:'操作失败，请重试')}}
  function select(id:string|null){setSelected(id);setHistory(null);setMore(false);setError('');window.scrollTo(0,0)}
  async function analyze(a:Asset){await api(`/assets/${a.id}/analyze`,'POST',{modules:['face','body','photography'],force:true});await refresh()}
+ async function deletePhoto(a:Asset){
+  if(deleting.includes(a.id)||!window.confirm(`删除照片 ${a.photo_number}# 和评分记录？删除后无法恢复。`))return
+  setDeleting(ids=>[...ids,a.id]);setError('')
+  try{
+   await api(`/assets/${a.id}`,'DELETE')
+   setAssets(list=>list.filter(item=>item.id!==a.id))
+   setSelected(current=>current===a.id?null:current);setHistory(null);setMore(false)
+   await refresh()
+  }catch(e){setError(e instanceof Error?e.message:'删除失败，请重试')}
+  finally{setDeleting(ids=>ids.filter(id=>id!==a.id))}
+ }
  async function castVote(a:Asset){
   if(voting.includes(a.id))return
   setVoting(v=>[...v,a.id])
@@ -97,18 +124,26 @@ export default function App(){
   setVoting(v=>v.filter(id=>id!==a.id))
  }
  async function upload(files:FileList|File[]){
-  if(busy)return
-  setBusy('准备上传…');setError('');const failures:string[]=[]
-  for(const [i,file] of Array.from(files).entries()){
-   setBusy(`上传 ${i+1}/${files.length}`)
+  const photos=Array.from(files)
+  if(uploadLock.current||busy||!photos.length)return
+  uploadLock.current=true
+  setBusy('准备上传…');setUploadProgress({index:1,total:photos.length,percent:0,phase:'uploading'});setError('');const failures:string[]=[]
+  try{for(const [i,file] of photos.entries()){
+   setBusy(`上传中 ${i+1}/${photos.length}`)
+   setUploadProgress({index:i+1,total:photos.length,percent:0,phase:'uploading'})
    let imported=false
    try{const form=new FormData();form.append('file',file);form.append('rights_confirmed','true');form.append('adult_confirmed','true')
-    const a=await api<Asset>('/assets','POST',form);imported=true
+    const a=await uploadPhoto<Asset>(form,token,
+     percent=>setUploadProgress(p=>p?{...p,percent}:p),
+     ()=>{setBusy(`正在处理照片 ${i+1}/${photos.length}…`);setUploadProgress(p=>p?{...p,phase:'processing'}:p)})
+    imported=true
+    setBusy(`正在启动分析 ${i+1}/${photos.length}…`);setUploadProgress(p=>p?{...p,phase:'starting'}:p)
     await api(`/assets/${a.id}/consent`,'POST',{adult_confirmed:true,external_consent:true,external_scope:'full_image'})
     await api(`/assets/${a.id}/analyze`,'POST',{modules:['face','body','photography']})
    }catch{failures.push(`第 ${i+1} 张${imported?'已上传，评分未启动，请点击照片重试':'上传失败，请检查格式和大小'}`)}
   }
-  await action(refresh);setBusy('');setUploadOpen(false);if(failures.length)setError(failures.join('；'))
+  setBusy('正在更新照片列表…');await action(refresh);setUploadOpen(false);if(failures.length)setError(failures.join('；'))
+  }finally{uploadLock.current=false;setBusy('');setUploadProgress(null)}
  }
  function requestAnalysis(){if(!asset)return;if(!asset.external_consent||asset.external_scope!=='full_image'||!asset.adult_confirmed){setConsentOpen(true)}else action(()=>analyze(asset))}
  const provenance=asset?.report.provenance
@@ -133,16 +168,16 @@ export default function App(){
 
  return <div className="simple-app">{!asset&&<header className="simple-header"><button className="simple-brand" aria-label="颜选 BeautyPick，返回照片列表" onClick={()=>select(null)}><Aperture size={27}/><span className="brand-name">颜选<small>BeautyPick</small></span></button><button className="primary" onClick={()=>{setUploadOpen(true);setError('')}}><ImagePlus size={17}/>上传照片</button></header>}
  {error&&<div className="error-banner" role="alert">{error}<button aria-label="关闭提示" onClick={()=>setError('')}><X size={17}/></button></div>}
-  {!asset?<><div className="library-heading"><div><h1>我的照片</h1><span>{assets.length} 张</span><span className="sort-hint">· 按{sort==='face'?'颜值':sort==='body'?'身材':sort==='photography'?'摄影':'上传时间'}从高到低排序</span></div><div className="sort-tabs" aria-label="照片排序">{[['face','颜值最高'],['body','身材最佳'],['photography','摄影最佳'],['newest','上传时间']].map(([key,title])=><button key={key} aria-pressed={sort===key} className={sort===key?'chosen':''} onClick={()=>setSort(key as typeof sort)}>{title}</button>)}</div></div>
+  {!asset?<><div className="library-heading"><div><h1>我的照片</h1><span>{assets.length} 张</span><span className="sort-hint">· 按{sort==='face'?'颜值':sort==='body'?'身材':sort==='photography'?'摄影':'上传时间'}从高到低排序</span></div><div className="sort-tabs" aria-label="照片排序">{[['face','颜值'],['body','身材'],['photography','摄影'],['newest','时间']].map(([key,title])=><button key={key} aria-pressed={sort===key} className={sort===key?'chosen':''} onClick={()=>setSort(key as typeof sort)}>{title}</button>)}</div></div>
   {!assets.length?<div className="start-empty"><Aperture size={56}/><h2>看看这张照片怎么样</h2><p>颜值 · 摄影 · 图片来源</p><button className="primary" onClick={()=>setUploadOpen(true)}>上传照片</button></div>:<div className="simple-grid">{sorted.map((a,index)=>{const job=activeJobs.find(j=>j.asset_id===a.id);const lastJob=jobs.find(j=>j.asset_id===a.id);const failed=!job&&lastJob&&['failed','partial','interrupted'].includes(lastJob.status);const rank=sort==='newest'?null:index+1
-   return <article className="simple-photo" key={a.id}><div className="simple-photo-image"><button className="photo-open" aria-label={`查看照片 ${assets.indexOf(a)+1}`} onClick={()=>select(a.id)}><img src={a.preview_url} alt="人像照片" loading="lazy"/></button><button className={`vote-button ${a.voted?'voted':''}`} aria-label={`${a.voted?'取消投票':'投票'} 照片 ${assets.indexOf(a)+1}`} aria-pressed={a.voted} disabled={voting.includes(a.id)} onClick={()=>castVote(a)}><Heart size={19} fill={a.voted?'currentColor':'none'}/><span>{a.vote_count}</span></button>{rank!=null&&<span className={`rank-badge rank-${rank<=3?rank:"other"}`} aria-label={`第 ${rank} 名`}><small>{sort==='face'?'颜值':sort==='body'?'身材':sort==='photography'?'摄影':'榜单'}</small><strong>{rank}</strong></span>}{job&&<span className="progress-badge">{job.status==='running'?'正在评分…':'等待评分…'}</span>}{failed&&<span className="progress-badge">{a.latest_attempt?.result?.report_id!==a.report.id&&(['face','body','photography'] as const).some(m=>a.report[m].total!=null)?'重评未完成 · 显示上次评分':'评分未完成 · 点击重试'}</span>}</div><button className="simple-photo-info" aria-label={`查看评分 ${assets.indexOf(a)+1}`} onClick={()=>select(a.id)}><div className="photo-title" title={a.filename}>{a.filename}</div><div className="card-totals">{(['face','body','photography'] as const).map(m=><span className={sort===m?'score-active':''} key={m}>{{face:'颜值',photography:'摄影',body:'身材'}[m]}<b className={a.report[m].total==null?'score-empty':''}>{(a.report[m].total?.toFixed(1))??(missingScore(a.report[m]))}</b></span>)}</div><div className="card-tags"><span className="source-tag">{sourceName(a)}</span>{a.photo_tags.framing&&<span className="framing-tag">{a.photo_tags.framing}</span>}{a.photo_tags.style&&<span className="style-tag">{a.photo_tags.style}</span>}</div></button></article>})}</div>}</>:
- <><div className="detail-toolbar"><button className="back-button" onClick={()=>select(null)}><ArrowLeft size={17}/>全部照片</button><div className="detail-actions"><button className="primary" disabled={!!currentJob} onClick={()=>requestAnalysis()}>{currentJob?'分析中…':'重新分析'}</button><div className="more-container"><button className="more-button" aria-expanded={more} onClick={()=>setMore(!more)}>更多 ···</button>{more&&<div className="more-menu"><a href={`/api/assets/${asset.id}/export.html`}>导出报告</a><button onClick={()=>action(async()=>{setHistory(await api<Report[]>(`/assets/${asset.id}/history`));setMore(false)})}>历史评分</button><button className="delete-button" onClick={()=>{if(confirm('删除这张照片和评分记录？删除后无法恢复。'))action(async()=>{await api(`/assets/${asset.id}`,'DELETE');select(null);await refresh()})}}>删除照片</button></div>}</div></div></div><div className="simple-detail"><div className="detail-photo"><div className="face-stage" style={{width:`min(100%, calc((100dvh - 124px) * ${asset.width/asset.height}))`}}><img src={asset.preview_url} alt="照片"/>{asset.report.faces.length>1&&asset.report.faces.map((box,i)=><button className="face-choice" key={i} aria-label={`选择人脸 ${i+1}`} disabled={!!currentJob} style={{left:`${box.x*100}%`,top:`${box.y*100}%`,width:`${box.width*100}%`,height:`${box.height*100}%`}} onClick={()=>action(async()=>{await api(`/assets/${asset.id}/target`,'POST',box);await refresh()})}>{i+1}</button>)}</div>{asset.report.faces.length>1&&<div className="face-picker"><span>选择要评分的人脸</span>{asset.report.faces.map((box,i)=><button key={i} disabled={!!currentJob} onClick={()=>action(async()=>{await api(`/assets/${asset.id}/target`,'POST',box);await refresh()})}>人脸 {i+1}</button>)}</div>}</div><div className="detail-results">{currentJob&&<div className="scoring-status">{currentJob.status==='running'?'正在评分…':'等待评分…'}<button onClick={()=>action(async()=>{await api(`/jobs/${currentJob.id}/cancel`,'POST');await refresh()})}>取消</button></div>}
+   return <article className="simple-photo" key={a.id}><div className="simple-photo-image"><button className="photo-open" aria-label={`查看照片 ${assets.indexOf(a)+1}`} onClick={()=>select(a.id)}><img src={a.preview_url} alt="人像照片" loading="lazy"/></button><button className={`vote-button ${a.voted?'voted':''}`} aria-label={`${a.voted?'取消投票':'投票'} 照片 ${assets.indexOf(a)+1}`} aria-pressed={a.voted} disabled={voting.includes(a.id)} onClick={()=>castVote(a)}><Heart size={19} fill={a.voted?'currentColor':'none'}/><span>{a.vote_count}</span></button><button className="photo-delete-button" aria-label={`删除照片 ${a.photo_number}#`} title="删除照片" disabled={deleting.includes(a.id)} onClick={()=>deletePhoto(a)}>{deleting.includes(a.id)?<LoaderCircle size={17} className="upload-spinner"/>:<Trash2 size={17}/>}</button>{rank!=null&&<span className={`rank-badge rank-${rank<=3?rank:"other"}`} aria-label={`第 ${rank} 名`}><small>{sort==='face'?'颜值':sort==='body'?'身材':sort==='photography'?'摄影':'榜单'}</small><strong>{rank}</strong></span>}{job&&<span className="progress-badge">{job.status==='running'?'正在评分…':'等待评分…'}</span>}{failed&&<span className="progress-badge">{a.latest_attempt?.result?.report_id!==a.report.id&&(['face','body','photography'] as const).some(m=>a.report[m].total!=null)?'重评未完成 · 显示上次评分':'评分未完成 · 点击重试'}</span>}</div><button className="simple-photo-info" aria-label={`查看评分 ${assets.indexOf(a)+1}`} onClick={()=>select(a.id)}><div className="photo-title" title={a.filename}><span className="photo-number">{a.photo_number}#</span><span className="photo-filename">{a.filename}</span></div><div className="card-totals">{(['face','body','photography'] as const).map(m=><span className={sort===m?'score-active':''} key={m}>{{face:'颜值',photography:'摄影',body:'身材'}[m]}<b className={a.report[m].total==null?'score-empty':''}>{(a.report[m].total?.toFixed(1))??(missingScore(a.report[m]))}</b>{a.report[m].total==null&&['partial','not_assessable','failed'].includes(a.report[m].status)&&a.report[m].summary&&<small className="score-reason" title={a.report[m].summary}>{a.report[m].summary}</small>}</span>)}</div></button></article>})}</div>}</>:
+ <><div className="detail-toolbar"><button className="back-button" onClick={()=>select(null)}><ArrowLeft size={17}/>全部照片</button><span className="detail-photo-number">{asset.photo_number}#</span><div className="detail-actions"><button className="detail-delete-button" disabled={deleting.includes(asset.id)} onClick={()=>deletePhoto(asset)}><Trash2 size={16}/>{deleting.includes(asset.id)?'删除中…':'删除'}</button><button className="primary" disabled={!!currentJob} onClick={()=>requestAnalysis()}>{currentJob?'分析中…':'重新分析'}</button><div className="more-container"><button className="more-button" aria-expanded={more} onClick={()=>setMore(!more)}>更多 ···</button>{more&&<div className="more-menu"><a href={`/api/assets/${asset.id}/export.html`}>导出报告</a><button onClick={()=>action(async()=>{setHistory(await api<Report[]>(`/assets/${asset.id}/history`));setMore(false)})}>历史评分</button></div>}</div></div></div><div className="simple-detail"><div className="detail-photo"><div className="face-stage" style={{width:`min(100%, calc((100dvh - 124px) * ${asset.width/asset.height}))`}}><img src={asset.preview_url} alt="照片"/>{asset.report.faces.length>1&&asset.report.faces.map((box,i)=><button className="face-choice" key={i} aria-label={`选择人脸 ${i+1}`} disabled={!!currentJob} style={{left:`${box.x*100}%`,top:`${box.y*100}%`,width:`${box.width*100}%`,height:`${box.height*100}%`}} onClick={()=>action(async()=>{await api(`/assets/${asset.id}/target`,'POST',box);await refresh()})}>{i+1}</button>)}</div>{asset.report.faces.length>1&&<div className="face-picker"><span>选择要评分的人脸</span>{asset.report.faces.map((box,i)=><button key={i} disabled={!!currentJob} onClick={()=>action(async()=>{await api(`/assets/${asset.id}/target`,'POST',box);await refresh()})}>人脸 {i+1}</button>)}</div>}</div><div className="detail-results">{currentJob&&<div className="scoring-status">{currentJob.status==='running'?'正在评分…':'等待评分…'}<button onClick={()=>action(async()=>{await api(`/jobs/${currentJob.id}/cancel`,'POST');await refresh()})}>取消</button></div>}
  {!currentJob&&asset.latest_attempt&&['failed','partial','interrupted','cancelled'].includes(asset.latest_attempt.status)&&<div className="scoring-status">{asset.latest_attempt.result?.report_id!==asset.report.id&&(['face','body','photography'] as const).some(m=>asset.report[m].total!=null)?'本次分析未完成，显示上次评分':'本次分析未完成，请重试'}</div>}
  <Rating title="颜值" result={asset.report.face} rules={status?.rules.face||[]}/>
  <Rating title="身材" result={asset.report.body} rules={status?.rules.body||[]}/>
 
  <Rating title="摄影" result={asset.report.photography} rules={status?.rules.photography||[]}/>
- <section className="result-block image-info"><div className="result-title"><h2>图片信息</h2></div><div className="archive-fields">{keyInfo.map(([k,v])=><div key={k}><span>{k}</span><b>{v}</b></div>)}</div><details className="archive-more" key={asset.id}><summary>查看详情</summary><div className="archive-fields">{extraInfo.map(([k,v])=><div key={k}><span>{k}</span><b>{v}</b></div>)}</div></details></section>{history&&<section className="result-block"><div className="result-title"><h2>历史评分</h2><button aria-label="关闭历史评分" onClick={()=>setHistory(null)}><X size={18}/></button></div>{history.map(h=><div className="history-item" key={h.id}><time>{new Date(h.created_at).toLocaleString()}</time><p>颜值 {score(h.face.total,true)} · 摄影 {score(h.photography.total,true)} · {h.body.rubric_version==='body-appearance-3.0'?'身材':'形体（旧版）'} {score(h.body.total,true)}</p><a href={`/api/assets/${asset.id}/export.html?report_id=${h.id}`}>查看报告</a></div>)}</section>}</div></div></>}
- {(uploadOpen||consentOpen)&&<div className="modal-backdrop"><section className="simple-modal" role="dialog" aria-modal="true" aria-label={uploadOpen?'上传照片':'开始评分'}><div className="modal-title"><h2>{uploadOpen?'上传照片':'开始评分'}</h2><button aria-label="关闭窗口" disabled={!!busy} onClick={()=>{setUploadOpen(false);setConsentOpen(false)}}><X size={20}/></button></div>{uploadOpen?<div className="simple-dropzone" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();upload(e.dataTransfer.files)}}><ImagePlus size={32}/><h3>{busy||'拖入照片，或点击上传'}</h3><label className="primary file-button">选择照片<input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={!!busy} onChange={e=>{if(e.target.files)upload(e.target.files)}}/></label><small>仅上传成年人照片</small><small>支持多张 · JPG / PNG / WebP · 每张 {status?.max_upload_mb||20} MB 以内</small></div>:<><p className="modal-notice">仅支持成年人照片</p><button className="primary" onClick={()=>action(async()=>{if(!asset)return;await api(`/assets/${asset.id}/consent`,'POST',{adult_confirmed:true,external_consent:true,external_scope:'full_image'});await analyze({...asset,adult_confirmed:true});setConsentOpen(false)})}>开始分析</button></>}</section></div>}
+ <section className="result-block image-info"><div className="result-title"><h2>图片信息</h2></div><div className="archive-fields">{keyInfo.map(([k,v])=><div key={k}><span>{k}</span><b>{v}</b></div>)}</div><details className="archive-more" key={asset.id}><summary>查看详情</summary><div className="archive-fields">{extraInfo.map(([k,v])=><div key={k}><span>{k}</span><b>{v}</b></div>)}</div></details></section>{history&&<section className="result-block"><div className="result-title"><h2>历史评分</h2><button aria-label="关闭历史评分" onClick={()=>setHistory(null)}><X size={18}/></button></div>{history.map(h=><div className="history-item" key={h.id}><time>{new Date(h.created_at).toLocaleString()}</time><p>颜值 {score(h.face.total,true)} · 摄影 {score(h.photography.total,true)} · {['body-appearance-3.0','body-visible-fixed-zero-1.0'].includes(h.body.rubric_version||'')?'身材':'形体（旧版）'} {score(h.body.total,true)}</p><a href={`/api/assets/${asset.id}/export.html?report_id=${h.id}`}>查看报告</a></div>)}</section>}</div></div></>}
+ {(uploadOpen||consentOpen)&&<div className="modal-backdrop"><section className="simple-modal" role="dialog" aria-modal="true" aria-label={uploadOpen?'上传照片':'开始评分'}><div className="modal-title"><h2>{uploadOpen?'上传照片':'开始评分'}</h2><button aria-label="关闭窗口" disabled={!!busy} onClick={()=>{setUploadOpen(false);setConsentOpen(false)}}><X size={20}/></button></div>{uploadOpen?<div className="simple-dropzone" aria-busy={!!uploadProgress} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();upload(e.dataTransfer.files)}}>{uploadProgress?<><LoaderCircle size={32} className="upload-spinner"/><h3 role="status" aria-live="polite">{busy}</h3><div className="upload-feedback"><progress aria-label="照片上传进度" max={100} value={uploadProgress.phase==='uploading'?uploadProgress.percent:undefined}/><span>{uploadProgress.phase==='uploading'?`${uploadProgress.percent}%`:`已传输 · ${uploadProgress.index}/${uploadProgress.total}`}</span></div></>:<><ImagePlus size={32}/><h3>拖入照片，或点击上传</h3></>}<label className={`primary file-button ${busy?'file-button-disabled':''}`}>{busy?'请稍候…':'选择照片'}<input type="file" accept=".jpg,.jpeg,.jpe,.jfif,.png,.webp,.heic,.heif,.hif,.avif,.bmp,.tif,.tiff,.gif,.jp2,.j2k,image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,image/bmp,image/tiff,image/gif,image/jp2" multiple disabled={!!busy} onChange={e=>{if(e.target.files)upload(e.target.files)}}/></label><small>仅上传成年人照片</small><small>支持多张 · HEIC / JPG / PNG / WebP / AVIF / BMP / TIFF / 静态 GIF / JP2 · 每张 {status?.max_upload_mb||20} MB 以内</small></div>:<><p className="modal-notice">仅支持成年人照片</p><button className="primary" onClick={()=>action(async()=>{if(!asset)return;await api(`/assets/${asset.id}/consent`,'POST',{adult_confirmed:true,external_consent:true,external_scope:'full_image'});await analyze({...asset,adult_confirmed:true});setConsentOpen(false)})}>开始分析</button></>}</section></div>}
  </div>
 }

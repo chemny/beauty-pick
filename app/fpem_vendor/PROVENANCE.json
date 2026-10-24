@@ -1,0 +1,35 @@
+{
+  "FPEM": {
+    "url": "https://github.com/Estella-LH/FPEM",
+    "commit": "c2965425247d7bf8b764d27e4483a06fc7a061e5"
+  },
+  "CLIP": {
+    "url": "https://github.com/openai/CLIP",
+    "package": "openai-clip==1.0.1"
+  },
+  "InceptionResnetV1": {
+    "url": "https://github.com/timesler/facenet-pytorch",
+    "package": "facenet-pytorch==2.6.0"
+  },
+  "modifications": [
+    "Explicit device and preconstructed CLIP; relative imports without sys.path changes",
+    "FP32 instead of CUDA-only autocast",
+    "Preserve batch dimension for single image",
+    "Remove network weight loading; architecture weights loaded strictly by app.fpem_model"
+  ],
+  "files": {
+    "Clips.py": "d1f168e263b40251b867e86238d868389f0c08948286fecc89b3808031ec6fe6",
+    "__init__.py": "a16c0c25f208bb134aaa49d879f84affa1c36c6b88406310703bd7a650d9e42b",
+    "LICENSE-CLIP": "987e63b32f6c89ff5160e429458a872ff048e6860b590a3912e938f9da8f14db",
+    "LICENSE-FACENET": "9fac5781e1529f4dd1a045716e1859436038d2def9e108d101b6df20c5a11318",
+    "VIT.py": "41007bdded036a91d0467016e6b7234b70a383abddaec10b0ef33f5547e02d25",
+    "VQA.py": "576c6b2c7477c30b560de448b2cafe8a1bb475c168ffcf5eb80056559339e934",
+    "LICENSE-FPEM": "6b3ab086ee8bfaf3b9c14bc8277117ece96f2e675ad6c10e8b50cdad2383c96e",
+    "SwinFace_arch.py": "e115c121b3eada5fac8a7c585e77d076f31f68983325ce9be53dadb8a3c87eb3",
+    "inception_resnet_v1.py": "414fc8fc23d64c337582574ede4d0d7aabd95996ddef442e5bad57866678a6ad",
+    "clip/bpe_simple_vocab_16e6.txt.gz": "924691ac288e54409236115652ad4aa250f48203de50a9e4722a6ecd48d6804a",
+    "clip/__init__.py": "ebdfdd1c5adb71bfcce85693c1c3d33b762f4ab903737badff21ad4fb624695a",
+    "clip/model.py": "429489552b2610903b82c9c3215cbb50ca8552e60f0b17dfc4233c1ea0f8422c",
+    "clip/simple_tokenizer.py": "d1b09f10ed3d1e2c343619cb98cbfacb92363dd8607526a43aa7fe2d60d15bad"
+  }
+}

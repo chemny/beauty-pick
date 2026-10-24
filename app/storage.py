@@ -152,25 +152,26 @@ def public_asset(row: dict) -> dict:
             "sha256", "created_at", "expires_at", "status", "retained",
             "adult_confirmed", "rights_confirmed", "external_consent", "external_scope")
     obj = {k: row[k] for k in keys}
+    number = one("SELECT rowid AS photo_number FROM assets WHERE id=?", (row["id"],))
+    obj["photo_number"] = number["photo_number"] if number else None
     for key in ("retained", "adult_confirmed", "rights_confirmed", "external_consent"):
         obj[key] = bool(obj[key])
     obj["target"] = json.loads(row["target_json"]) if row["target_json"] else None
     obj["report"] = json.loads(row["report_json"]) if row["report_json"] else None
     from .provenance import source_display
-    from .scoring import BODY_RUBRIC_VERSION, FACE_RUBRIC_VERSION
+    from .scoring import BODY_RUBRIC_VERSION, FACE_RUBRIC_VERSION, is_overall_face
     face = (obj['report'] or {}).get('face', {})
-    if face.get('status') not in ('not_enabled', 'failed', 'not_assessable') and face.get('rubric_version') != FACE_RUBRIC_VERSION:
+    standard_face = is_overall_face(face)
+    if face.get('status') not in ('not_enabled', 'failed', 'not_assessable') and not standard_face and face.get('rubric_version') != FACE_RUBRIC_VERSION:
         face.update(status='outdated', total=None, dimensions=[], summary='颜值评分待更新', strengths=[], shooting_tips=[])
     body = (obj['report'] or {}).get('body', {})
-    if body.get('status') != 'not_enabled' and body.get('rubric_version') != BODY_RUBRIC_VERSION:
+    from .body_model import RUBRIC_VERSION as CURRENT_BODY_RUBRIC
+    if body.get('status') != 'not_enabled' and body.get('rubric_version') not in (BODY_RUBRIC_VERSION, CURRENT_BODY_RUBRIC):
         body.update(status='outdated', total=None, dimensions=[], summary='身材评分待更新', strengths=[], shooting_tips=[])
     obj['user_source'] = row.get('user_source', 'unknown')
     obj['source_display'] = source_display((obj['report'] or {}).get('provenance', {}), obj['user_source'])
     obj['voted'] = bool(row.get('voted', 0))
     obj['vote_count'] = int(obj['voted'])
-    photography = (obj['report'] or {}).get('photography', {})
-    obj['photo_tags'] = json.loads(row['photo_tags_json']) if row.get('photo_tags_json') else {
-        'framing': photography.get('framing'), 'style': photography.get('style')}
     latest = one("SELECT id,status,error,result_json,updated_at FROM jobs WHERE asset_id=? ORDER BY created_at DESC LIMIT 1", (row["id"],))
     obj["latest_attempt"] = ({k: v for k, v in latest.items() if k != "result_json"} | {"result": json.loads(latest["result_json"] or "null")} if latest else None)
     obj["preview_url"] = f"/api/assets/{row['id']}/preview"

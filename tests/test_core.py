@@ -13,6 +13,7 @@ from app.scoring import total_score, face_total_score, finalize, RULES, FACE_RUB
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
+    monkeypatch.setenv('BEAUTYPICK_PHOTO_MODEL','cv')
     monkeypatch.setattr(config, 'DATA_DIR', tmp_path)
     monkeypatch.setattr(storage, 'DATA_DIR', tmp_path)
     with TestClient(app) as client:
@@ -40,6 +41,36 @@ def test_rounding_null_and_strict_types():
 
 def model_output():
     return dict(dimensions=[dict(key=k,status='assessable',score=7,evidence='可见依据',limitations=[]) for k,*_ in RULES['face']],summary='测试',strengths=[],limitations=[],shooting_tips=[],editing_tips=[])
+
+
+def body_model_output(score=70):
+    from app.body_model import WEIGHTS
+    return {'assessment': {'scope':'测试', **{k:{'score':score,'visibility':'partial','confidence':'medium','evidence':'测试可见依据'} for k in WEIGHTS}},
+            'visibility': {'parts':{k:{'allowed':True,'state':'partial','reason':'测试范围'} for k in WEIGHTS}}}
+
+
+@pytest.mark.parametrize('method,version,expected', [
+    ('standard-face-v1', 'standard-face-1.0', 90.9),
+    ('fpem-face-v1', 'fpem-face-1.0', 90.9),
+    ('fpem-face-v1', 'fpem-face-unknown', None),
+    ('unknown', 'fpem-face-1.0', None),
+    ('standard-face-v1', 'standard-face-unknown', None),
+    ('unknown', 'standard-face-1.0', None),
+    (None, FACE_RUBRIC_VERSION, 90.9),
+])
+def test_list_preserves_supported_face_scores_after_upload(client, method, version, expected):
+    asset = upload(client, adult=True)
+    row = storage.get_asset(asset['id'])
+    report = json.loads(row['report_json'])
+    report['face'] = dict(status='completed',total=90.9,dimensions=[],summary='',
+                          scoring_method=method,rubric_version=version)
+    encoded = json.dumps(report)
+    storage.run("UPDATE assets SET report_json=?,status='completed' WHERE id=?", (encoded, asset['id']))
+    listed = client.get('/api/assets').json()
+    face = next(a for a in listed if a['id']==asset['id'])['report']['face']
+    assert face['total'] == expected
+    assert face['status'] == ('completed' if expected is not None else 'outdated')
+    assert storage.get_asset(asset['id'])['report_json'] == encoded
 
 
 def test_schema_rejects_missing_duplicate_and_inconsistent():
@@ -278,8 +309,7 @@ def test_model_gate_and_explicit_suggestions(client,monkeypatch):
     a=upload(client,adult=True);aid=a['id']
     storage.run('UPDATE assets SET external_consent=1 WHERE id=?',(aid,))
     def evaluate(module,path,cancelled,**kwargs):
-        raw=model_output();raw['scene']='full_body'
-        raw['dimensions']=[dict(key=k,status='assessable',score=8,evidence='测试可见依据',limitations=[]) for k,*_ in RULES['body']]
+        raw=body_model_output(80)
         return raw,{'engine':provider.engine_identity(module),'input_tokens':1,'output_tokens':1}
     monkeypatch.setattr(provider,'evaluate',evaluate)
     jid=storage.new_id()
@@ -301,7 +331,7 @@ def test_upload_size_pixel_and_format_limits(client,monkeypatch):
     buf=io.BytesIO();Image.new('RGB',(10,10)).save(buf,'PNG')
     assert client.post('/api/assets',data={'rights_confirmed':'true'},files={'file':('wrong.exe',buf.getvalue(),'application/octet-stream')}).status_code==200
     buf=io.BytesIO();Image.new('RGB',(10,10)).save(buf,'GIF')
-    assert client.post('/api/assets',data={'rights_confirmed':'true'},files={'file':('fake.png',buf.getvalue(),'image/png')}).status_code==400
+    assert client.post('/api/assets',data={'rights_confirmed':'true'},files={'file':('fake.png',buf.getvalue(),'image/png')}).status_code==200
 
 
 def test_exports_escape_user_content_and_original_unchanged(client):
@@ -424,15 +454,14 @@ def test_votes_are_idempotent_persistent_and_protected(client):
     assert client.put(f'/api/assets/{aid}/vote',json={'voted':True}).status_code==404
 
 
-def test_photography_tags_are_constrained_and_legacy_safe():
-    from app.scoring import finalize, model_schema, RULES
+def test_photography_no_longer_generates_card_tags():
+    from app.scoring import finalize, model_schema, RULES, model_prompt
     raw=model_output()
     raw['dimensions']=[dict(key=k,status='assessable',score=7,evidence='可见依据',limitations=[]) for k,*_ in RULES['photography']]
-    assert finalize('photography',raw)['framing'] is None
-    tagged=finalize('photography',{**raw,'framing':'半身','style':'自然清新'})
-    assert tagged['framing']=='半身' and tagged['total']==70
-    with pytest.raises(ValueError):finalize('photography',{**raw,'style':'随意编造'})
-    assert {'framing','style'} <= set(model_schema('photography')['required'])
+    result=finalize('photography',raw)
+    assert result['total']==70 and not {'framing','style'} & result.keys()
+    assert not {'framing','style'} & model_schema('photography')['properties'].keys()
+    assert '另输出framing' not in model_prompt('photography')
 
 
 def test_body_visible_weights_decimal_and_minimum():
@@ -450,7 +479,8 @@ def test_body_visible_weights_decimal_and_minimum():
     raw=model_output();raw['scene']='head_only'
     raw['dimensions']=[dict(key=k,status='assessable',score=8.1,evidence='测试',limitations=[]) for k in weights]
     result=finalize('body',raw)
-    assert result['total'] is None and result['assessed_count']==0
+    assert result['total']==0 and result['assessed_count']==0
+    assert result['score_basis']=='no_visible_body'
 
 
 def test_body_old_result_hidden_but_history_retained(client):
@@ -494,6 +524,7 @@ def test_body_ranking_handles_missing_dimensions(client):
 
 
 def test_upload_consent_and_three_module_analysis(client, monkeypatch):
+    monkeypatch.setattr(pipeline, "face_assessability", lambda *a: {"assessable": True, "limitations": []})
     from app import standard_face
     monkeypatch.setattr(standard_face, 'prepare', lambda im, target: (im.resize((224,224)), {'margin': .12}))
     from types import SimpleNamespace
@@ -507,8 +538,8 @@ def test_upload_consent_and_three_module_analysis(client, monkeypatch):
     def evaluate(module,path,cancelled,**kwargs):
         calls.append(module);raw=model_output()
         raw['dimensions']=[dict(key=k,status='assessable',score=7,evidence='测试可见范围',limitations=[]) for k,*_ in RULES[module]]
-        if module=='body':raw['scene']='full_body'
-        if module=='face':raw={'status':'completed','raw_score':3.764,'total':71.0}
+        if module=='body':raw=body_model_output()
+        if module=='face':raw={'status':'completed','raw_score':4.0,'total':80.0}
         return raw,{'engine':provider.engine_identity(module),'input_tokens':1,'output_tokens':1}
     monkeypatch.setattr(provider,'evaluate',evaluate)
     monkeypatch.setattr(provider,'available',lambda:True)
@@ -517,11 +548,12 @@ def test_upload_consent_and_three_module_analysis(client, monkeypatch):
     assert r.status_code==200
     assert set(calls)=={'face','photography','body'}
     report=json.loads(storage.get_asset(aid)['report_json'])
-    assert all(report[m]['total']==(71 if m=='face' else 70) for m in calls)
+    assert all(report[m]['total']==(80 if m=='face' else 70) for m in calls)
     assert storage.one('SELECT status FROM jobs WHERE id=?',(r.json()['job_id'],))['status']=='completed'
 
 
 def test_scoring_runs_two_modules_at_once(client, monkeypatch):
+    monkeypatch.setattr(pipeline, "face_assessability", lambda *a: {"assessable": True, "limitations": []})
     from app import standard_face
     monkeypatch.setattr(standard_face, 'prepare', lambda im, target: (im.resize((224,224)), {'margin': .12}))
     from threading import Event, Lock, Thread
@@ -549,9 +581,9 @@ def test_scoring_runs_two_modules_at_once(client, monkeypatch):
         raw['dimensions'] = [dict(key=k, status='assessable', score=7, evidence='测试可见依据', limitations=[])
                              for k, *_ in RULES[module]]
         if module == 'body':
-            raw['scene'] = 'full_body'
+            raw = body_model_output()
         if module == 'face':
-            raw = {'status':'completed','raw_score':3.764,'total':71.0}
+            raw = {'status':'completed','raw_score':4.0,'total':80.0}
         return raw, {'engine':provider.engine_identity(module), 'input_tokens': 1, 'output_tokens': 1}
 
     monkeypatch.setattr(provider, 'evaluate', evaluate)

@@ -13,3 +13,13 @@ __pycache__/
 .env
 *.pyc
 .DS_Store
+
+# Downloaded FPEM checkpoint (see models/README.md)
+/models/fpem.pth
+
+/models/topiq-iaa-res50.pth
+
+# Local body parser weights and isolated dependency runtime
+/models/fashn-human-parser/
+/models/body-runtime/
+/models/pose_landmarker_heavy.task
